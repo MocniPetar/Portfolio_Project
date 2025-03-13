@@ -2,15 +2,32 @@
 <html lang="en">
     <head>
         <meta charset="UTF-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0, shrink-to-fit=no">
         <meta http-equiv="X-UA-Compatible" content="ie=edge">
         <title>Hosted with C program</title>
+        <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@4.3.1/dist/css/bootstrap.min.css" integrity="sha384-ggOyR0iXCbMQv3Xipma34MD+dH/1fQ784/j6cY/iJTQUOhcWr7x9JvoRxT2MZw1T" crossorigin="anonymous">
         <link rel="stylesheet" href="./style.css">
         <link rel="icon" href="data:," />
+        <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500&display=swap" rel="stylesheet">
     </head>
     <body>
         <main>
-            <p> Test Website </p>
+            <div id="content-box-1">
+                <p id="title"> .TAR FILE READER </p>
+            </div>
+            
+            <div id="content-box-2">
+                <p id="description-alias"> Description </p>
+                <span id="description">
+                    <p style="margin: 0">Hello, Welcome to the .Tar File Reader WebApp. This software will read the .Tar file, open it in the backend, read it and display its contents to you in an intuitive way. It will check for any malicious executable or terminating calls. The data you send is not stored on our servers!!</p>
+                </span>
+            </div>
+            
+            <div id="content-box-3">
+                <label for="myfile">Select a file:</label>
+                <input type="file" id="myfile" name="myfile">
+                <button id="scan-button" type="button" class="btn btn-primary" onclick="scanFile()"> Test Displaying </button>
+            </div>
         </main>
         <script src="./script.js"></script>
     </body>
