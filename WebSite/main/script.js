@@ -1,6 +1,6 @@
-const container = document.getElementById('content-box-3');
 
 function scanFile() {
+    const container = document.getElementById('content-box-3');
     const div = document.createElement('div');
     div.classList.add('content-div');
     div.innerHTML = `
@@ -10,5 +10,9 @@ function scanFile() {
         </p>
     `;
 
-    container.appendChild(div);
+
+    if (container)
+        container.appendChild(div);
+    else
+        alert("Failed to display file contents");
 }

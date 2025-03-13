@@ -108,11 +108,20 @@ void getRequestedURI(char *fullPath, char *method, char *route, char *MIMEtype, 
                 strcpy(fullPath + path_size, route);
             }
             else if (strcmp(MIMEtype, ".css") == 0) {
-                strcpy(fullPath + path_size, route);
+                if (strcmp(route, "/not_found.css") == 0)
+                    strcpy(fullPath, "../WebSite/not_found/not_found.css");
+                else
+                    strcpy(fullPath + path_size, route);
             }
             else if (strcmp(MIMEtype, ".js") == 0) {
                 strcpy(fullPath + path_size, route);
             }
+        }
+        // Add an else if here when connecting the frontend with the backend becouse the server can catch requests to the backend
+        // and if they are defined in the backend you do not want ot return not_found
+        else {
+            strcpy(fullPath, "../WebSite/not_found/index.html");
+            strcpy(MIMEtype, ".html");
         }
     }
 
@@ -167,6 +176,7 @@ void handle_response(char *response_buffer, char *request_url)
 void handleRequest(char *fullPath, char *MIMEtype, char **response_buffer) 
 {
     FILE *file = fopen(fullPath, "r");
+    printf("%s\n", fullPath);
     if (file == NULL)
     {
         /*
@@ -179,48 +189,51 @@ void handleRequest(char *fullPath, char *MIMEtype, char **response_buffer)
 
         //handle_response(*response_buffer, "http://localhost:7033/api/Account");
         */
-
-       strcpy(fullPath, "../Website/not_found/index.html");
-       strcpy(MIMEtype, ".html");
+        strcpy(*response_buffer, "HTTP/1.1 500 Problem\r\n\r\n");
     }
-
-    if (strcmp(MIMEtype, ".html") == 0) {
-        sprintf(*response_buffer, "%s", "HTTP/1.1 200 OK\r\nContent-Type: text/html\r\n\r\n");
-    }
-    else if (strcmp(MIMEtype, ".css") == 0) {
-        sprintf(*response_buffer, "%s", "HTTP/1.1 200 OK\r\nContent-Type: text/css\r\n\r\n");
-    }
-    else if (strcmp(MIMEtype, ".js") == 0) {
-        sprintf(*response_buffer, "%s", "HTTP/1.1 200 OK\r\nContent-Type: text/javascript\r\n\r\n");
-    }
-    
-    fseek(file, 0, SEEK_END);
-    size_t file_size = ftell(file);
-    fseek(file, 0, SEEK_SET);
-    char *file_buffer = (char *)malloc(file_size);
-    if (file_buffer == NULL)
+    else 
     {
-        perror("malloc");
-        exit(1);
-    }
-    size_t bytesRead = fread(file_buffer, 1, file_size, file);
-    file_buffer[bytesRead] = '\0';
-    size_t file_buffer_size = strlen(file_buffer);
-    size_t current_response_size = strlen(*response_buffer);
-    if ((current_response_size + file_buffer_size + 1) > (current_response_size + file_buffer_size)) {
-        size_t new_response_buffer_size = current_response_size + file_buffer_size + 1;
-        char *temp = realloc(*response_buffer, new_response_buffer_size);
-        if (temp == NULL)
+        if (strcmp(MIMEtype, ".html") == 0) {
+            sprintf(*response_buffer, "%s", "HTTP/1.1 200 OK\r\nContent-Type: text/html\r\n\r\n");
+        }
+        else if (strcmp(MIMEtype, ".css") == 0) {
+            sprintf(*response_buffer, "%s", "HTTP/1.1 200 OK\r\nContent-Type: text/css\r\n\r\n");
+        }
+        else if (strcmp(MIMEtype, ".js") == 0) {
+            sprintf(*response_buffer, "%s", "HTTP/1.1 200 OK\r\nContent-Type: text/javascript\r\n\r\n");
+        }
+        
+        fseek(file, 0, SEEK_END);
+        size_t file_size = ftell(file);
+        fseek(file, 0, SEEK_SET);
+        char *file_buffer = (char *)malloc(file_size);
+        if (file_buffer == NULL)
         {
-            fprintf(stderr, "malloc");
-            free(file_buffer);
+            perror("malloc");
             exit(1);
         }
-        *response_buffer = temp;
+
+        size_t bytesRead = fread(file_buffer, 1, file_size, file);
+        file_buffer[bytesRead] = '\0';
+        size_t file_buffer_size = strlen(file_buffer);
+
+        size_t current_response_size = strlen(*response_buffer);
+        if ((current_response_size + file_buffer_size + 1) > (current_response_size + file_buffer_size)) {
+            size_t new_response_buffer_size = current_response_size + file_buffer_size + 1;
+            char *temp = realloc(*response_buffer, new_response_buffer_size);
+            if (temp == NULL)
+            {
+                fprintf(stderr, "malloc");
+                free(file_buffer);
+                exit(1);
+            }
+            *response_buffer = temp;
+        }
+
+        strcat(*response_buffer, file_buffer);
+        free(file_buffer);
+        fclose(file);
     }
-    strcat(*response_buffer, file_buffer);
-    free(file_buffer);
-    fclose(file);
 }
 
 void launch (struct Server *server) 
