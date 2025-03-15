@@ -9,6 +9,9 @@
 #include <dirent.h>
 #include <errno.h>
 
+#define MAX_REQUEST_SIZE 35000
+#define PORT 8080
+
 struct Server server_constructor(int domain, int service, int protocol, u_long interface, 
     int port, int backlog, char* websiteDirectoryPath, void(*launch)(struct Server *server))
 {
@@ -238,7 +241,7 @@ void handleRequest(char *fullPath, char *MIMEtype, char **response_buffer)
 
 void launch (struct Server *server) 
 {
-    char request_buffer[30000], method[10], route[100];
+    char request_buffer[MAX_REQUEST_SIZE], method[10], route[100];
     int address_length = sizeof(server->address);
     int new_socket;
 
@@ -251,9 +254,9 @@ void launch (struct Server *server)
             fprintf(stderr, "Failed to accept client...\n");
             exit(1);
         }
-        if (read(new_socket, request_buffer, 30000) < 0)
+        if (read(new_socket, request_buffer, MAX_REQUEST_SIZE) < 0)
         {
-            fprintf(stderr, "Faile to read request_buffer to socket...\n");
+            fprintf(stderr, "Failed to read request_buffer to socket...\n");
             exit(1);
         }
         
@@ -313,6 +316,6 @@ int main (int argc, char **argv)
 
     printf("\nSuccessfully located the project build directory...\n");
 
-    struct Server server = server_constructor(AF_INET, SOCK_STREAM, 0, INADDR_LOOPBACK, 8080, 10, argv[1], launch);
+    struct Server server = server_constructor(AF_INET, SOCK_STREAM, 0, INADDR_LOOPBACK, PORT, 10, argv[1], launch);
     server.launch(&server);
 }
