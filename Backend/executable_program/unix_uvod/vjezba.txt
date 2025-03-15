@@ -1,0 +1,8 @@
+mkdir unix_uvod
+chmod 755 unix_uvod
+cd unix_uvod
+touch vjezba.txt
+joe vjezba.txt
+chmod 644 vjezba.txt
+cd ..
+tar -cf unix_uvod.tar unix_uvod
