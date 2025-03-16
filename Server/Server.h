@@ -14,6 +14,8 @@
 #include <time.h>
 #include <stdbool.h>
 
+#define MAX_REQUEST_SIZE 35000
+
 struct Server 
 {
     int domain;
@@ -35,9 +37,21 @@ struct Response
     size_t size;
 };
 
+struct ClientSocketDetails 
+{
+    int socket;
+    char method[12];
+    char route[100];
+    char siteDirectory[1024];
+    char request_buffer[MAX_REQUEST_SIZE];
+};
+
 void launch (struct Server *server);
+void reciveAndSendDataOnSeparateThread(struct ClientSocketDetails *client);
 struct Server server_constructor(int domain, int service, int protocol, char* interface, int port, int backlog, char *websiteDirectoryPath, void (*launch)(struct Server *server));
 bool establishingFilePathAndDataType(char *filePath, char *method, char *route, char *MIMEtype, size_t path_size);
 void createResponse(char *fullPath, char *MIMEtype, char **response_buffer);
+void writingAndSendingAResoponse(int socket, char* filePath, char* MIMEtype);
+bool sendResponse(struct ClientSocketDetails *client);
 
 #endif

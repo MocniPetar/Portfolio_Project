@@ -4,8 +4,11 @@
 #include <curl/curl.h>
 #include <dirent.h>
 #include <errno.h>
+#include <pthread.h>
 
 #define PORT 8080
+
+void* reciveAndSendData(void *);
 
 struct Server server_constructor(int domain, int service, int protocol, char* interface, 
     int port, int backlog, char* websiteDirectoryPath, void(*launch)(struct Server *server))
@@ -223,7 +226,75 @@ void createResponse(char *fullPath, char *MIMEtype, char **response_buffer)
     fclose(file);
 }
 
+void writingAndSendingAResoponse(int socket, char* filePath, char* MIMEtype) 
+{
+    char *response_buffer = (char *)malloc(1024);
+    if (!response_buffer)
+    {
+        fprintf(stderr, "Failed to allocate memory for response_buffer...");
+        exit(1);
+    }
+    createResponse(filePath, MIMEtype, &response_buffer);
+    
+    if (strlen(response_buffer) <= 5 && strcmp(response_buffer, "error")) {
+        send(socket, "HTTP/1.1 500 Problem\r\n\r\n", (size_t)strlen("HTTP/1.1 500 Problem\r\n\r\n"), 0);
+    }
+    else {
+        if (write(socket, response_buffer, strlen(response_buffer)) < 0)
+        {
+            fprintf(stderr, "Failed to send response...\n");
+            exit(1);
+        }
+    }
+
+    if (response_buffer != NULL)
+        free(response_buffer);
+}
+
+bool sendResponse(struct ClientSocketDetails *client)
+{
+    char filePath[1024];
+    char MIMEtype[12];
+    strcpy(filePath, client->siteDirectory);
+    if(!establishingFilePathAndDataType(filePath, client->method, client->route, MIMEtype, strlen(client->siteDirectory))) 
+    {
+        printf("Failed to establish file path and data type...\n");
+        close(client->socket);
+        return false;
+    }
+    else {
+        writingAndSendingAResoponse(client->socket, filePath, MIMEtype);
+    }
+    return true;
+}
+
+void reciveAndSendDataOnSeparateThread(struct ClientSocketDetails *client) 
+{
+    pthread_t id;
+    pthread_create(&id, NULL, reciveAndSendData, client);
+}
+
+void* reciveAndSendData(void* arg) 
+{
+    struct ClientSocketDetails* client = (struct ClientSocketDetails*) arg;
+    if (recv(client->socket, client->request_buffer, MAX_REQUEST_SIZE, 0) < 0)
+    {
+        fprintf(stderr, "Failed to read request_buffer to socket...\n");
+        pthread_exit(NULL);
+    }
+    printf("%s\n", client->request_buffer);
+    sscanf(client->request_buffer, "%s %s", client->method, client->route);
+
+    printf("Request accepted, sending response...\n");
+    if(!sendResponse(client)) {
+        printf("Failed to send response to client...\n");
+    }
+    close(client->socket);
+    return NULL;
+}
+
 void handle_sigint(int sig) {
+    printf("Exiting program...\n");
     exit(0);
 }
 
