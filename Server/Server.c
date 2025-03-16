@@ -1,18 +1,13 @@
 #include "Server.h"
-#include <stdio.h>
-#include <unistd.h>
-#include <string.h>
 #include <fcntl.h>
 #include <netdb.h>
 #include <curl/curl.h>
-#include <stdbool.h>
 #include <dirent.h>
 #include <errno.h>
 
-#define MAX_REQUEST_SIZE 35000
 #define PORT 8080
 
-struct Server server_constructor(int domain, int service, int protocol, u_long interface, 
+struct Server server_constructor(int domain, int service, int protocol, char* interface, 
     int port, int backlog, char* websiteDirectoryPath, void(*launch)(struct Server *server))
 {
     struct Server server;
@@ -27,9 +22,10 @@ struct Server server_constructor(int domain, int service, int protocol, u_long i
 
     server.address.sin_family = domain;
     server.address.sin_port = htons(port);
-    server.address.sin_addr.s_addr = htonl(interface);
+    inet_pton(server.domain, interface, &server.address.sin_addr.s_addr);
 
     server.socket = socket(server.domain, server.service, server.protocol);
+
     if (server.socket < 0)
     {
         perror("Failed to connect socket...\n");
@@ -59,7 +55,7 @@ struct Server server_constructor(int domain, int service, int protocol, u_long i
     
     server.launch = launch;
     return server;
-}
+}   
 
 size_t write_chunk(void *data, size_t size, size_t nmemb, void *userdata) 
 {
@@ -76,59 +72,6 @@ size_t write_chunk(void *data, size_t size, size_t nmemb, void *userdata)
     response->string[response->size] = '\0';
 
     return real_size;
-}
-
-void getRequestedURI(char *fullPath, char *method, char *route, char *MIMEtype, char *directoryPath, size_t path_size) 
-{   
-    printf("---- In getRequestedURI function ----\n");
-    
-    if (strcmp(method, "GET") != 0)
-    {
-        printf("%s is an unacceptable method...\n", method);
-        return;
-    }
-    strcpy(fullPath, directoryPath);
-    
-    if (route[strlen(route) - 1] == '/') {
-        strcpy(MIMEtype, ".html");
-        strcpy(fullPath + path_size, "/index.html");
-    }
-    else {
-        int dotIndex = 0;
-        for (int i = 0; i < strlen(route); i++) 
-        {
-            if (route[i] == '.') {  
-                dotIndex = i;
-                break;
-            }
-        }
-
-        if (dotIndex > 0)
-        {
-            strcpy(MIMEtype, &route[dotIndex]);
-
-            if (strcmp(MIMEtype, ".html") == 0) {
-                strcpy(fullPath + path_size, route);
-            }
-            else if (strcmp(MIMEtype, ".css") == 0) {
-                if (strcmp(route, "/not_found.css") == 0)
-                    strcpy(fullPath, "../WebSite/not_found/not_found.css");
-                else
-                    strcpy(fullPath + path_size, route);
-            }
-            else if (strcmp(MIMEtype, ".js") == 0) {
-                strcpy(fullPath + path_size, route);
-            }
-        }
-        // Add an else if here when connecting the frontend with the backend becouse the server can catch requests to the backend
-        // and if they are defined in the backend you do not want ot return not_found
-        else {
-            strcpy(fullPath, "../WebSite/not_found/index.html");
-            strcpy(MIMEtype, ".html");
-        }
-    }
-
-    printf("\nPATH: %s\nMIME Type: %s\n", fullPath, MIMEtype);
 }
 
 // IN TESTING FAZE
@@ -176,132 +119,120 @@ void handle_response(char *response_buffer, char *request_url)
     free(response.string);
 }
 
-void handleRequest(char *fullPath, char *MIMEtype, char **response_buffer) 
-{
-    FILE *file = fopen(fullPath, "r");
-    printf("%s\n", fullPath);
-    if (file == NULL)
+bool establishingFilePathAndDataType(char *filePath, char *method, char *route, char *MIMEtype, size_t path_size) 
+{   
+    if (strcmp(method, "GET") != 0)
     {
-        /*
-            If file = NULL then configure the fullPath to be of the not_found
-        */
-
-        /*
-        FOR LATER OPERATIONS ADD ADDITIONAL IF-ELSE statements to execute certen operations with the backend part of the project
-        Like using curl to connect with the backend if the file = NULL
-
-        //handle_response(*response_buffer, "http://localhost:7033/api/Account");
-        */
-        strcpy(*response_buffer, "HTTP/1.1 500 Problem\r\n\r\n");
+        printf("%s is an unacceptable method...\n", method);
+        return false;
     }
+
+    if (route[strlen(route) - 1] == '/') {
+        strcpy(MIMEtype, ".html");
+        strcpy(filePath + path_size, "/index.html");
+        return true;
+    }
+
+    int start_of_mime_type = 0;
+    while(start_of_mime_type < strlen(route)) {
+        if (route[start_of_mime_type] == '.') {
+            break;
+        }
+        start_of_mime_type++;
+    }
+    strcpy(MIMEtype, &route[start_of_mime_type]);
+    if (strcmp(MIMEtype, ".html") == 0) 
+    {
+        strcpy(filePath + path_size, route);
+    }
+    else if (strcmp(MIMEtype, ".css") == 0) 
+    {
+        if (strcmp(route, "/not_found.css") == 0) { strcpy(filePath, "../WebSite/not_found/not_found.css"); }
+        else { strcpy(filePath + path_size, route); }
+    }
+    else if (strcmp(MIMEtype, ".js") == 0) 
+    {
+        strcpy(filePath + path_size, route);
+    }
+    // Add an else if here when connecting the frontend with the backend becouse the server can catch requests to the backend
+    // and if they are defined in the backend you do not want ot return not_found
     else 
     {
-        if (strcmp(MIMEtype, ".html") == 0) {
-            sprintf(*response_buffer, "%s", "HTTP/1.1 200 OK\r\nContent-Type: text/html\r\n\r\n");
-        }
-        else if (strcmp(MIMEtype, ".css") == 0) {
-            sprintf(*response_buffer, "%s", "HTTP/1.1 200 OK\r\nContent-Type: text/css\r\n\r\n");
-        }
-        else if (strcmp(MIMEtype, ".js") == 0) {
-            sprintf(*response_buffer, "%s", "HTTP/1.1 200 OK\r\nContent-Type: text/javascript\r\n\r\n");
-        }
-        
-        fseek(file, 0, SEEK_END);
-        size_t file_size = ftell(file);
-        fseek(file, 0, SEEK_SET);
-        char *file_buffer = (char *)malloc(file_size);
-        if (file_buffer == NULL)
-        {
-            perror("malloc");
-            exit(1);
-        }
-
-        size_t bytesRead = fread(file_buffer, 1, file_size, file);
-        file_buffer[bytesRead] = '\0';
-        size_t file_buffer_size = strlen(file_buffer);
-
-        size_t current_response_size = strlen(*response_buffer);
-        if ((current_response_size + file_buffer_size + 1) > (current_response_size + file_buffer_size)) {
-            size_t new_response_buffer_size = current_response_size + file_buffer_size + 1;
-            char *temp = realloc(*response_buffer, new_response_buffer_size);
-            if (temp == NULL)
-            {
-                fprintf(stderr, "malloc");
-                free(file_buffer);
-                exit(1);
-            }
-            *response_buffer = temp;
-        }
-
-        strcat(*response_buffer, file_buffer);
-        free(file_buffer);
-        fclose(file);
+        strcpy(filePath, "../WebSite/not_found/index.html");
+        strcpy(MIMEtype, ".html");
     }
+
+    return true;
 }
 
-void launch (struct Server *server) 
+void createResponse(char *fullPath, char *MIMEtype, char **response_buffer) 
 {
-    char request_buffer[MAX_REQUEST_SIZE], method[10], route[100];
-    int address_length = sizeof(server->address);
-    int new_socket;
 
-    while(1)
+    // Check if backend end point exists from the fullPath (using if-else statements)
+    // Call backend function and process the data if exists
+    // Return backend response from here
+
+    // If not a backend call continue with sending site data
+
+    FILE *file = fopen(fullPath, "r");
+    printf("Sendin file at path: %s\n", fullPath);
+    if (file == NULL)
     {
-        printf("===== WAITING FOR CONNECTION =====\n");
-
-        if ((new_socket = accept(server->socket, (struct sockaddr *)&server->address, (socklen_t *)&address_length)) < 0)
-        {
-            fprintf(stderr, "Failed to accept client...\n");
-            exit(1);
-        }
-        if (read(new_socket, request_buffer, MAX_REQUEST_SIZE) < 0)
-        {
-            fprintf(stderr, "Failed to read request_buffer to socket...\n");
-            exit(1);
-        }
-        
-        // Client request
-        printf("\n\n Client request:\n%s\n\n", request_buffer);
-        sscanf(request_buffer, "%s %s", method, route);
-
-        char fullPath[1024];
-        char MIMEtype[12];
-        char *response_buffer = (char *)malloc(1024);
-        if (!response_buffer)
-        {
-            fprintf(stderr, "Failed to allocate memory for response_buffer...");
-            exit(1);
-        }
-
-        getRequestedURI(fullPath, method, route, MIMEtype, server->websiteDirectoryPath, strlen(server->websiteDirectoryPath));
-        
-       handleRequest(fullPath, MIMEtype, &response_buffer);
-        if (strlen(response_buffer) <= 5 && strcmp(response_buffer, "error")) {
-            send(new_socket, "HTTP/1.1 500 Problem\r\n\r\n", (size_t)strlen("HTTP/1.1 500 Problem\r\n\r\n"), 0);
-        }
-        else {
-            printf("Sending site data...\n");
-            if (write(new_socket, response_buffer, strlen(response_buffer)) < 0)
-            {
-                fprintf(stderr, "Failed to write buffer to socket...\n");
-                exit(1); 
-            }
-        }
-
-        if (response_buffer != NULL)
-            free(response_buffer);
-
-        if(close(new_socket) < 0)
-        {
-            fprintf(stderr, "Failed to close socket...\n");
-            exit(1);
-        }
-        printf("\n\nSocket is closed...\n\n");
+        strcpy(*response_buffer, "HTTP/1.1 500 Problem\r\n\r\n");
+        return;
     }
+
+    if (strcmp(MIMEtype, ".html") == 0) {
+        sprintf(*response_buffer, "%s", "HTTP/1.1 200 OK\r\nContent-Type: text/html\r\n\r\n");
+    }
+    else if (strcmp(MIMEtype, ".css") == 0) {
+        sprintf(*response_buffer, "%s", "HTTP/1.1 200 OK\r\nContent-Type: text/css\r\n\r\n");
+    }
+    else if (strcmp(MIMEtype, ".js") == 0) {
+        sprintf(*response_buffer, "%s", "HTTP/1.1 200 OK\r\nContent-Type: text/javascript\r\n\r\n");
+    }
+    
+    fseek(file, 0, SEEK_END);
+    size_t file_size = ftell(file);
+    fseek(file, 0, SEEK_SET);
+
+    char *file_buffer = (char *)malloc(file_size);
+    if (file_buffer == NULL)
+    {
+        perror("malloc");
+        exit(1);
+    }
+    size_t bytesRead = fread(file_buffer, 1, file_size, file);
+    file_buffer[bytesRead] = '\0';
+    size_t file_buffer_size = strlen(file_buffer);
+    size_t current_response_size = strlen(*response_buffer);
+    if ((current_response_size + file_buffer_size + 1) > (current_response_size + file_buffer_size)) {
+        size_t new_response_buffer_size = current_response_size + file_buffer_size + 1;
+        char *temp = realloc(*response_buffer, new_response_buffer_size);
+        if (temp == NULL)
+        {
+            fprintf(stderr, "malloc");
+            free(file_buffer);
+            exit(1);
+        }
+        *response_buffer = temp;
+    }
+    strcat(*response_buffer, file_buffer);
+    response_buffer[strlen(*response_buffer)] = 0;
+    free(file_buffer);
+    fclose(file);
+}
+
+void handle_sigint(int sig) {
+    exit(0);
 }
 
 int main (int argc, char **argv) 
 {
+    if (signal(SIGINT, handle_sigint) == SIG_ERR) {
+        perror("Failed to set signal handler");
+        exit(0);
+    }
     if (argc < 2) {
         printf("Missing project build directory...\n");
         exit(0);
@@ -316,6 +247,9 @@ int main (int argc, char **argv)
 
     printf("\nSuccessfully located the project build directory...\n");
 
-    struct Server server = server_constructor(AF_INET, SOCK_STREAM, 0, INADDR_LOOPBACK, PORT, 10, argv[1], launch);
+    // This is executed only once to create the server socket
+    struct Server server = server_constructor(AF_INET, SOCK_STREAM, 0, "127.0.0.1", PORT, 10, argv[1], launch);
+
+    // This part containes a while loop and it awaits for a client to connect
     server.launch(&server);
 }

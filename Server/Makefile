@@ -7,7 +7,7 @@ all: $(TARGETS)
 
 start_server: Server.o
 	@echo "Linking..."
-	@$(CC) $(CFLAGS) Server.c -o run_server -lcurl
+	@$(CC) $(CFLAGS) WebSiteClient.c Server.c -o run_server -lcurl
 
 %.o:%.c
 	@echo "Compiling..."
