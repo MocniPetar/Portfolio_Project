@@ -40,18 +40,13 @@ struct Response
 struct ClientSocketDetails 
 {
     int socket;
-    char method[12];
-    char route[100];
-    char siteDirectory[1024];
+    char method[16];
+    char route[256];
+    char siteDirectory[256];
     char request_buffer[MAX_REQUEST_SIZE];
 };
 
 void launch (struct Server *server);
-void reciveAndSendDataOnSeparateThread(struct ClientSocketDetails *client);
-struct Server server_constructor(int domain, int service, int protocol, char* interface, int port, int backlog, char *websiteDirectoryPath, void (*launch)(struct Server *server));
-bool establishingFilePathAndDataType(char *filePath, char *method, char *route, char *MIMEtype, size_t path_size);
-void createResponse(char *fullPath, char *MIMEtype, char **response_buffer);
-void writingAndSendingAResoponse(int socket, char* filePath, char* MIMEtype);
-bool sendResponse(struct ClientSocketDetails *client);
+void reciveAndSendDataOnSeparateThread(int client_socket, char *webSiteDirPath);
 
 #endif
