@@ -1,5 +1,5 @@
 CC = /usr/bin/gcc
-CFLAGS = -Wall -O2
+CFLAGS = -Wall -O2 -fsanitize=address -g
 TARGETS = start_server clean
 
 default: all

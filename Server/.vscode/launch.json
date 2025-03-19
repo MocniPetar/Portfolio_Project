@@ -5,9 +5,9 @@
       "name": "C/C++ Runner: Debug Session",
       "type": "lldb",
       "request": "launch",
-      "args": [],
+      "args": ["../WebSite/main"],
       "cwd": "/Users/pierstrbad/Desktop/CProjects/TARFileReader/Server",
-      "program": "/Users/pierstrbad/Desktop/CProjects/TARFileReader/Server/build/Debug/outDebug"
+      "program": "/Users/pierstrbad/Desktop/CProjects/TARFileReader/Server/run_server"
     }
   ]
 }

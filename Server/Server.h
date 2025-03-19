@@ -21,14 +21,13 @@ struct Server
     int domain;
     int service;
     int protocol;
-    char* interface;
+    char* ip;
     int port;
     int backlog;
     int socket;
     char *websiteDirectoryPath;
 
     struct sockaddr_in address;
-    void (*launch)(struct Server *server);
 };
 
 struct Response 
@@ -46,7 +45,6 @@ struct ClientSocketDetails
     char request_buffer[MAX_REQUEST_SIZE];
 };
 
-void launch (struct Server *server);
 void reciveAndSendDataOnSeparateThread(int client_socket, char *webSiteDirPath);
 
 #endif
