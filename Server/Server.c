@@ -109,6 +109,7 @@ void handle_response(char *response_buffer, char *request_url)
     }
 
     // ===== SUBJECT TO CHANGE =====
+    // This is where the recieved data is going to be parsed
 
     char color_value[8];
     strcpy(color_value, &response.string[response.size - 6]);
@@ -133,10 +134,6 @@ bool establishingFilePathAndDataType(char *filePath, char *method, char *route, 
         snprintf(MIMEtype, 16, ".html");
         strncpy(filePath + dir_path, "/index.html", strlen(filePath) - 1);
         filePath[strlen(filePath) + 1] = '\0';
-        printf("\n%s\n", filePath);
-        printf("%s\n", MIMEtype);
-    
-
         return true;
     }
 
@@ -301,14 +298,27 @@ void* reciveAndSendData(void* arg)
 {
     struct ClientSocketDetails* client = (struct ClientSocketDetails*) arg;
 
-    if (recv(client->socket, client->request_buffer, MAX_REQUEST_SIZE, 0) < 0)
+    ssize_t recieved_bytes = recv(client->socket, client->request_buffer, MAX_REQUEST_SIZE - 1, 0);
+    if (recieved_bytes < 0)
     {
         fprintf(stderr, "Failed to read request_buffer to socket...\n");
         close(client->socket);
         free(client);
         pthread_exit(NULL);
     }
-    //printf("%s\n", client->request_buffer);
+    client->request_buffer[recieved_bytes] = '\0';
+
+    printf("%s\n", client->request_buffer);
+
+    char *body_start = strstr(client->request_buffer, "\r\n\r\n");
+    if (body_start == NULL) { printf("Body is null...\n"); }
+    else {
+        body_start += 4;  // Move past the `\r\n\r\n` to the actual body
+        printf("Request Body size:\n%lu\n", (size_t)strlen(body_start));
+        write(STDOUT_FILENO, body_start, strlen(body_start));
+        puts("\n");
+    }
+
     sscanf(client->request_buffer, "%s %s", client->method, client->route);
     client->method[strlen(client->method) + 1] = '\0';
     client->route[strlen(client->route) + 1] = '\0';
@@ -331,13 +341,12 @@ void reciveAndSendDataOnSeparateThread(int client_socket, char *webSiteDirPath)
         fprintf(stderr, "Memory allocation failed!\n");
         return;
     }
-
     client->socket = client_socket;
     strcpy(client->siteDirectory, webSiteDirPath);
 
-    int ret = pthread_create(&id, NULL, reciveAndSendData, client);
-    if (ret != 0) {
-        fprintf(stderr, "Failed to create thread. Error code: %d\n", ret);
+    int thread = pthread_create(&id, NULL, reciveAndSendData, client);
+    if (thread != 0) {
+        fprintf(stderr, "Failed to create thread. Error code: %d\n", thread);
         free(client);
         return;
     }
@@ -377,7 +386,7 @@ int main (int argc, char **argv)
     printf("\nSuccessfully located the project build directory...\n");
 
     // This is executed only once to create the server socket
-    struct Server server = server_constructor(AF_INET, SOCK_STREAM, 0, "192.168.0.153", PORT, 10, argv[1]);
+    struct Server server = server_constructor(AF_INET, SOCK_STREAM, 0, "127.0.0.1", PORT, 10, argv[1]);
     server_socket = server.socket;
 
     int address_length = sizeof(server.address);
@@ -387,7 +396,7 @@ int main (int argc, char **argv)
     while(true)
     {
         printf("\n===== WAITING =====\n");
-        printf("Waiting for client request...\n");
+        printf("Waiting for client request...\n\n");
 
         // At this part the program stops and listens for a connection
         if ((client_socket = accept(server.socket, (struct sockaddr *)&server.address, (socklen_t *)&address_length)) < 0)

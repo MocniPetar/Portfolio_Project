@@ -1,34 +1,5 @@
 #include "program_header.h"
 
-/*
-    TAR archives:
-        - they are (typically) organized in blocks of 512 bytes
-*/
-
-// After calling this function only necessary system calls will be allowed
-// and others will be blocked
-// int limit_system_calls() {
-//     scmp_filter_ctx ctx = seccomp_init(SCMP_ACT_KILL);
-//     if (ctx == NULL) {
-//         perror("seccomp_init failed");
-//         return 1;
-//     }
-
-//     seccomp_rule_add(ctx, SCMP_ACT_ALLOW, SCMP_SYS(read), 0);
-//     seccomp_rule_add(ctx, SCMP_ACT_ALLOW, SCMP_SYS(write), 0);
-//     seccomp_rule_add(ctx, SCMP_ACT_ALLOW, SCMP_SYS(open), 0);
-//     seccomp_rule_add(ctx, SCMP_ACT_ALLOW, SCMP_SYS(close), 0);
-//     seccomp_rule_add(ctx, SCMP_ACT_ALLOW, SCMP_SYS(fstat), 0);
-
-//     if (seccomp_load(ctx) < 0) {
-//         perror("seccomp_load failed");
-//         seccomp_release(ctx);
-//         return 1;
-//     }
-//     seccomp_release(ctx);
-//     return 0;
-// }
-
 int read_file(struct tar *tar_pointer, char *name, char **start, int *length) {
 
     // tar is already set to the starting entry of the TAR archive

@@ -14,7 +14,7 @@
 #include <time.h>
 #include <stdbool.h>
 
-#define MAX_REQUEST_SIZE 35000
+#define MAX_REQUEST_SIZE 64000
 
 struct Server 
 {

@@ -7,7 +7,6 @@
 #include <fcntl.h> 
 #include <string.h> 
 #include <unistd.h>
-// #include <seccomp.h>
 #include <sys/resource.h>
 #include <sys/mman.h>
 #include <sys/stat.h>
@@ -39,7 +38,6 @@ struct posix_header {
     char prefix[155];    // Prefix for long names
 };
 
-// int limit_system_calls();
 int read_file(struct tar *, char *, char **, int *);
 int display_file_properties(void *, struct posix_header *);
 void make_permissions_readable(char *, char **);
