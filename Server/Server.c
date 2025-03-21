@@ -6,7 +6,6 @@
 #include <errno.h>
 #include <pthread.h>
 #include <Kernel/string.h>
-
 #define PORT 8080
 
 int server_socket = 0;
@@ -297,8 +296,12 @@ bool sendResponse(int socket, char* method, char* route, char* siteDirectory)
 void* reciveAndSendData(void* arg) 
 {
     struct ClientSocketDetails* client = (struct ClientSocketDetails*) arg;
-
+    ssize_t total_received = 0;
+    ssize_t content_length = -1;
+    char *headers_end;
+    client->body = NULL;
     ssize_t recieved_bytes = recv(client->socket, client->request_buffer, MAX_REQUEST_SIZE - 1, 0);
+
     if (recieved_bytes < 0)
     {
         fprintf(stderr, "Failed to read request_buffer to socket...\n");
@@ -307,26 +310,75 @@ void* reciveAndSendData(void* arg)
         pthread_exit(NULL);
     }
     client->request_buffer[recieved_bytes] = '\0';
-
-    printf("%s\n", client->request_buffer);
-
-    char *body_start = strstr(client->request_buffer, "\r\n\r\n");
-    if (body_start == NULL) { printf("Body is null...\n"); }
-    else {
-        body_start += 4;  // Move past the `\r\n\r\n` to the actual body
-        printf("Request Body size:\n%lu\n", (size_t)strlen(body_start));
-        write(STDOUT_FILENO, body_start, strlen(body_start));
-        puts("\n");
-    }
-
     sscanf(client->request_buffer, "%s %s", client->method, client->route);
     client->method[strlen(client->method) + 1] = '\0';
     client->route[strlen(client->route) + 1] = '\0';
+    total_received += recieved_bytes;
 
-    printf("Request accepted, sending response...\n");
+    headers_end = strstr(client->request_buffer, "\r\n\r\n");
+    if (headers_end && strcmp(client->route, "/upload") == 0) {
+        printf("%s\n\n", client->request_buffer);
+        int header_length = headers_end - client->request_buffer + 4;
+
+        // Find Content-Length
+        char *content_length_str = strstr(client->request_buffer, "Content-Length:");
+        if (content_length_str) {
+            sscanf(content_length_str, "Content-Length: %zd", &content_length);
+        }
+
+        // Calculate how much of the body we already have
+        ssize_t body_received = total_received - header_length;
+
+        // Allocate buffer to hold the entire body
+        char *body = malloc(content_length + 1);
+        if (body_received > 0) {
+            memcpy(body, client->request_buffer + header_length, body_received);
+        }
+
+        // Read the rest of the body
+        while (body_received < content_length) {
+            recieved_bytes = recv(client->socket, body + body_received, content_length - body_received, 0);
+            if (recieved_bytes <= 0) break;
+            body_received += recieved_bytes;
+        }
+
+        body[content_length] = '\0'; // Null-terminate if needed
+        printf("Received size body: %zd bytes\n", body_received);
+        printf("Received body content: \n%s", body);
+        puts("\n");
+
+        // Do something with `body`...
+
+        // This is how the data actualy looks like:
+        /*
+            ------WebKitFormBoundary26cG8SgbDpzpYpYN
+            Content-Disposition: form-data; name="user-file"; filename="user_file.tar"
+            Content-Type: application/x-tar
+
+            <YOUR FILE BYTES HERE>
+
+            ------WebKitFormBoundary26cG8SgbDpzpYpYN--
+        */
+        // The file data is between the ------WebKitFormBoundary26cG8SgbDpzpYpYN and ------WebKitFormBoundary26cG8SgbDpzpYpYN--
+        // To be more specific after:
+        /*
+            Search for the line starting with Content-Disposition: and containing filename=.
+            Skip the following empty line (\r\n) — this marks the start of the actual file bytes.
+            Read until the next boundary string (starts with ------WebKitFormBoundary...) — this marks the end of the file content.
+
+            This is where the rest of the data is located. The only reason why it is not shown in the terminal
+            is because %s in printf can not print the bytes that represent the file.
+        */
+
+        client->body = (char *)malloc(body_received * sizeof(char));
+        strcpy(client->body, body);
+        free(body);
+    }
     if(!sendResponse(client->socket, client->method, client->route, client->siteDirectory)) {
         printf("Failed to send response to client...\n");
     }
+    
+    if (client->body != NULL) { free(client->body); }
     close(client->socket);
     free(client);
     pthread_exit(NULL);
@@ -404,6 +456,7 @@ int main (int argc, char **argv)
             fprintf(stderr, "Failed to accept client...\n");
             break;
         }
+        printf("Request accepted, sending response...\n");
 
         // Create multiple threads
         reciveAndSendDataOnSeparateThread(client_socket, server.websiteDirectoryPath);

@@ -24,9 +24,11 @@
             </div>
             
             <div id="content-box-3">
-                <label for="myfile">Select a file:</label>
-                <input type="file" id="myfile" name="myfile" multiple="false">
-                <button id="scan-button" type="button" class="btn btn-primary" onclick="sendFileToBackendAndRecieveData()"> Test Displaying </button>
+                <form id="form">
+                    <label for="user-file">Select a file:</label>
+                    <input type="file" id="user-file" name="user-file" accept=".tar">
+                    <button id="scan-button" type="submit" class="btn btn-primary"> Test Displaying </button>
+                </form>
             </div>
         </main>
         <script src="./script.js"></script>

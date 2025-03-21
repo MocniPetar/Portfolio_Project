@@ -14,7 +14,7 @@
 #include <time.h>
 #include <stdbool.h>
 
-#define MAX_REQUEST_SIZE 64000
+#define MAX_REQUEST_SIZE 2048
 
 struct Server 
 {
@@ -43,6 +43,7 @@ struct ClientSocketDetails
     char route[256];
     char siteDirectory[256];
     char request_buffer[MAX_REQUEST_SIZE];
+    char* body;
 };
 
 void reciveAndSendDataOnSeparateThread(int client_socket, char *webSiteDirPath);

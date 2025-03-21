@@ -1,33 +1,19 @@
+document.getElementById('form').addEventListener('submit', function(e) {
+    e.preventDefault();
 
-async function sendFileToBackendAndRecieveData() {
     const endpoint = "http://localhost:8080/upload"
-    const fileInput = document.getElementById('myfile');
-
-    try {
-        const file = fileInput.files[0];
-        const formData = new FormData();
-        formData.append('file', file);
-
-        console.log(file, formData);
-
-        const response = await fetch(endpoint, {
-            method: 'POST',
-            body: formData,
-        });
-
-        if (response.ok) {
-            const data = await response.json();
-            console.log('Server response:', data);
-          } else {
-            throw new Error('File upload failed');
-          }
-    }
-    catch (error) {
-        console.error('Error uploading file:', error);
-    }
-
-
-}
+    const userFile = document.getElementById('user-file').files[0];
+    const formData = new FormData();
+    
+    formData.append('user-file', userFile, 'user_file.tar');
+    fetch(endpoint, {
+        method: 'POST',
+        body: formData,
+    })
+    .then(res => res.json())
+    .then(data => console.log(data))
+    .catch(err => console.log(err));
+});
 
 function displayTheDataOnThePage() {
     const container = document.getElementById('content-box-3');
