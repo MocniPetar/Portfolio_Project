@@ -13,6 +13,12 @@
 #include <signal.h>
 #include <time.h>
 #include <stdbool.h>
+#include <fcntl.h>
+#include <netdb.h>
+#include <curl/curl.h>
+#include <dirent.h>
+#include <errno.h>
+#include <pthread.h>
 
 #define MAX_REQUEST_SIZE 2048
 

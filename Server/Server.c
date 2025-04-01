@@ -1,14 +1,9 @@
 #include "Server.h"
-#include <fcntl.h>
-#include <netdb.h>
-#include <curl/curl.h>
-#include <dirent.h>
-#include <errno.h>
-#include <pthread.h>
-#include <Kernel/string.h>
+
 #define PORT 8080
 
 int server_socket = 0;
+int fd = 0;
 
 struct Server server_constructor(int domain, int service, int protocol, char* ip, 
     int port, int backlog, char* websiteDirectoryPath)
@@ -121,7 +116,7 @@ void handle_response(char *response_buffer, char *request_url)
     free(response.string);
 }
 
-bool establishingFilePathAndDataType(char *filePath, char *method, char *route, char *MIMEtype, size_t dir_path) 
+bool establishingFilePathAndDataType(char *filePath, char *method, char *route, char *MIMEtype, size_t dir_path_size) 
 {   
     if (strcmp(method, "GET") != 0)
     {
@@ -129,65 +124,59 @@ bool establishingFilePathAndDataType(char *filePath, char *method, char *route, 
         return false;
     }
 
-    if (route[strlen(route) - 1] == '/') {
-        snprintf(MIMEtype, 16, ".html");
-        strncpy(filePath + dir_path, "/index.html", strlen(filePath) - 1);
-        filePath[strlen(filePath) + 1] = '\0';
-        return true;
+    size_t route_length = strlen(route);
+    size_t index_size = strlen("/index.html");
+    int index = 0, slashIndex = 0;
+
+    for (int i = 0; i < route_length; i++) 
+    {
+        if (route[i] == '.') { index = i; break; }
+        if (route[i] == '/') { slashIndex = i; }
     }
-
-    int start_of_mime_type = 0;
-    int route_length = strlen(route);
-
-    for (int i = 0; i < route_length; i++) {
-        if (route[i] == '.') {
-            start_of_mime_type = i;
-            break;
+    if (index > 0)
+    {
+        snprintf(MIMEtype, 16, "%s", &route[index]);
+        if (strcmp(&route[slashIndex], "/not_found.css") == 0) {
+            snprintf(filePath, 256, "../WebSite/not_found/not_found.css");
         }
+        else if (strcmp(MIMEtype, ".css") == 0) {
+            strncpy(filePath + dir_path_size, route, 256 - strlen(filePath) - 1);
+            filePath[strlen(filePath) + 1] = '\0';
+        }
+        else if (strcmp(MIMEtype, ".js") == 0) {
+            strncpy(filePath + dir_path_size, route, 256 - strlen(filePath) - 1);
+            filePath[strlen(filePath) + 1] = '\0';
+        }
+    }
+    else 
+    {   
+        snprintf(MIMEtype, 16, ".html");
+        if (route[route_length - 1] == '/') {
+            strcpy(filePath + dir_path_size, "/index.html");
+        }
+        else {
+            char routeWithIndex[index_size + route_length + 8];
+            strcpy(routeWithIndex, route);
+            strcpy(routeWithIndex + route_length, "/index.html");
+            routeWithIndex[index_size + route_length + 1] = '\0';
+            strncpy(filePath + dir_path_size, routeWithIndex, 256 - strlen(filePath) - 1);
+        }
+
+        filePath[strlen(filePath) + 1] = '\0';
     }
     
-    if (start_of_mime_type > 0) 
-    {
-        snprintf(MIMEtype, 16, "%s", &route[start_of_mime_type]);
-
-        if (strcmp(MIMEtype, ".html") == 0) 
-        {
-            strncpy(filePath + dir_path, "/index.html", strlen(filePath) - 1);
-            filePath[strlen(filePath) + 1] = '\0';
-
-        }
-        else if (strcmp(MIMEtype, ".css") == 0) 
-        {
-            if (strcmp(route, "/not_found.css") == 0) { 
-                snprintf(filePath, (strlen("../WebSite/not_found/not_found.css") + 1), "../WebSite/not_found/not_found.css");
-            }
-            else { 
-                strncpy(filePath + dir_path, "/style.css", strlen(filePath) - 1);
-                filePath[strlen(filePath) + 1] = '\0';
-
-            }
-        }
-        else if (strcmp(MIMEtype, ".js") == 0) 
-        {
-            strncpy(filePath + dir_path, "/script.js", strlen(filePath) - 1);
-            filePath[strlen(filePath) + 1] = '\0';
-
-        }
-    }
-    // Add an else if here when connecting the frontend with the backend becouse the server can catch requests to the backend
-    // and if they are defined in the backend you do not want ot return not_found
-    else 
-    {
+    printf("%s\n", filePath);
+    if (access(filePath, F_OK) != 0) {
+        printf("%s\n", filePath);
+        printf("File does not exist. Routing to not fount...\n");
+        snprintf(filePath, 256, "../WebSite/not_found/index.html");
         snprintf(MIMEtype, 16, ".html");
-        snprintf(filePath, (strlen("../WebSite/not_found/index.html") + 1), "../WebSite/not_found/index.html");
     }
-    printf("\n%s\n", filePath);
-    printf("%s\n", MIMEtype);
 
     return true;
 }
 
-void createResponse(char *fullPath, char *MIMEtype, char **response_buffer) 
+int createResponse(char *fullPath, char *MIMEtype, char **response_buffer) 
 {
 
     // Check if backend end point exists from the fullPath (using if-else statements)
@@ -206,12 +195,12 @@ void createResponse(char *fullPath, char *MIMEtype, char **response_buffer)
         *response_buffer = malloc(problem_response_size+1);
         if (*response_buffer == NULL) {
             fprintf(stderr, "Failed to allocate memory...\n");
-            exit(EXIT_FAILURE);
+            dprintf(fd, "Failed to allocate memory...\n");
+            return 0;
         }
 
         strncpy(*response_buffer, "HTTP/1.1 500 Problem\r\n\r\n", problem_response_size);
         (*response_buffer)[problem_response_size] = '\0';
-        return;
     }
     else 
     {
@@ -236,45 +225,61 @@ void createResponse(char *fullPath, char *MIMEtype, char **response_buffer)
         if (file_buffer == NULL)
         {
             fprintf(stderr, "Failed to allocate memory...\n");
+            dprintf(fd, "Failed to allocate memory...\n");
             fclose(file);
-            exit(1);
+            return 0;
         }
 
-        fread(file_buffer, 1, file_size, file);
+        if(fread(file_buffer, 1, file_size, file) <= 0) {
+            fprintf(stderr, "Failed to read data from file...\n");
+            dprintf(fd, "Failed to read data from file...\n");
+            free(file_buffer);
+            fclose(file);
+            return 0;
+        }
+
         file_buffer[file_size] = '\0';
-        fclose(file);
 
         size_t new_response_buffer_size = response_setup_size + file_size + 1;
         *response_buffer = (char *)malloc(new_response_buffer_size);
         if (*response_buffer == NULL) {
             fprintf(stderr, "Failed to allocate memory...\n");
+            dprintf(fd, "Failed to allocate memory...\n");
+            fclose(file);
             free(file_buffer);
-            exit(EXIT_FAILURE);
+            return 0;
         }
         strcpy(*response_buffer, response_setup_string);
         strcat(*response_buffer, file_buffer);
 
+        fclose(file);
         free(file_buffer);
     }
+    return 1;
 }
 
-void writingAndSendingAResoponse(int socket, char* filePath, char* MIMEtype) 
+int writingAndSendingAResoponse(int socket, char* filePath, char* MIMEtype) 
 {
     char *response_buffer = NULL;
-    createResponse(filePath, MIMEtype, &response_buffer);
+    if(!createResponse(filePath, MIMEtype, &response_buffer)) {
+        return 0;
+    }
     
     if (response_buffer == NULL) {
         fprintf(stderr, "Failed to create response...\n");
-        return;
+        dprintf(fd, "Failed to create response...\n");
+        return 0;
     }
 
     if (send(socket, response_buffer, strlen(response_buffer), 0) < 0)
     {
         fprintf(stderr, "Failed to send response...\n");
-        exit(1);
+        dprintf(fd, "Failed to send response...\n");
+        return 0;
     }
 
     free(response_buffer);
+    return 1;
 }
 
 bool sendResponse(int socket, char* method, char* route, char* siteDirectory)
@@ -287,9 +292,12 @@ bool sendResponse(int socket, char* method, char* route, char* siteDirectory)
     if(!establishingFilePathAndDataType(filePath, method, route, MIMEtype, dir_length)) 
     {
         printf("Failed to establish file path and data type...\n");
+        dprintf(fd, "Failed to establish file path and data type...\n");
         return false;
     }
-    writingAndSendingAResoponse(socket, filePath, MIMEtype);
+    if(!writingAndSendingAResoponse(socket, filePath, MIMEtype)) {
+        return false;
+    }
     return true;
 }
 
@@ -305,11 +313,15 @@ void* reciveAndSendData(void* arg)
     if (recieved_bytes < 0)
     {
         fprintf(stderr, "Failed to read request_buffer to socket...\n");
+        dprintf(fd, "Failed to read request_buffer to socket...\n");
         close(client->socket);
         free(client);
         pthread_exit(NULL);
+        exit(1);
     }
     client->request_buffer[recieved_bytes] = '\0';
+
+    dprintf(fd, "%s\n", client->request_buffer);
     sscanf(client->request_buffer, "%s %s", client->method, client->route);
     client->method[strlen(client->method) + 1] = '\0';
     client->route[strlen(client->route) + 1] = '\0';
@@ -396,6 +408,8 @@ void* reciveAndSendData(void* arg)
     }
     if(!sendResponse(client->socket, client->method, client->route, client->siteDirectory)) {
         printf("Failed to send response to client...\n");
+        dprintf(fd, "Failed to send response to client...\n");
+        exit(1);
     }
     
     if (client->body != NULL) { free(client->body); }
@@ -411,7 +425,7 @@ void reciveAndSendDataOnSeparateThread(int client_socket, char *webSiteDirPath)
 
     if (client == NULL) {
         fprintf(stderr, "Memory allocation failed!\n");
-        return;
+        exit(1);
     }
     client->socket = client_socket;
     strcpy(client->siteDirectory, webSiteDirPath);
@@ -419,20 +433,28 @@ void reciveAndSendDataOnSeparateThread(int client_socket, char *webSiteDirPath)
     int thread = pthread_create(&id, NULL, reciveAndSendData, client);
     if (thread != 0) {
         fprintf(stderr, "Failed to create thread. Error code: %d\n", thread);
+        dprintf(fd, "Failed to create thread. Error code: %d\n", thread);
         free(client);
-        return;
+        exit(1);
     }
     pthread_join(id, NULL);
 }
 
 void handle_sigint(int sig) {
     printf("\nExiting program...\n");
-    close(server_socket);
     exit(0);
+}
+
+void cleanup() {
+    close(fd);
+    close(server_socket);
+    printf("Closing file descriptors and sockets...\n");
 }
 
 int main (int argc, char **argv) 
 {
+    atexit(cleanup);
+
     if (signal(SIGINT, handle_sigint) == SIG_ERR) 
     {
         perror("Failed to set signal handler");
@@ -457,6 +479,11 @@ int main (int argc, char **argv)
 
     printf("\nSuccessfully located the project build directory...\n");
 
+    if ((fd = open("logs.txt", O_WRONLY | O_CREAT | O_TRUNC, 0644)) == -1) {
+        fprintf(stderr, "Cannot open log file...\n");
+        exit(-1);
+    }
+
     // This is executed only once to create the server socket
     struct Server server = server_constructor(AF_INET, SOCK_STREAM, 0, "127.0.0.1", PORT, 10, argv[1]);
     server_socket = server.socket;
@@ -467,8 +494,8 @@ int main (int argc, char **argv)
     // Waiting for a client request
     while(true)
     {
-        printf("\n===== WAITING =====\n");
-        printf("Waiting for client request...\n\n");
+        dprintf(fd, "\n===== WAITING =====\n");
+        dprintf(fd, "Waiting for client request...\n\n");
 
         // At this part the program stops and listens for a connection
         if ((client_socket = accept(server.socket, (struct sockaddr *)&server.address, (socklen_t *)&address_length)) < 0)
@@ -476,11 +503,9 @@ int main (int argc, char **argv)
             fprintf(stderr, "Failed to accept client...\n");
             break;
         }
-        printf("Request accepted, sending response...\n");
 
         // Create multiple threads
         reciveAndSendDataOnSeparateThread(client_socket, server.websiteDirectoryPath);
     }
-    close(server.socket);
     exit(0);
 }
