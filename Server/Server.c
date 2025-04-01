@@ -347,6 +347,26 @@ void* reciveAndSendData(void* arg)
         printf("Received body content: \n%s", body);
         puts("\n");
 
+        // char *fileName = "user_file.tar";
+        // char *endOfHeaders = strstr(body, "\r\n");
+        // if (endOfHeaders) {
+            
+        // }
+
+        int char_r_counter = 0;
+        for(int i = 0; i < content_length; i++) {
+            if(body[i] == '\r') {
+                printf("%d\n", i);
+                char_r_counter++;
+            }
+
+            if (char_r_counter == 3) {
+                printf("%d\n", i);
+                printf("%c%c%c\n", body[i-3], body[i-2], body[i-1]);
+                break;
+            }
+        }
+
         // Do something with `body`...
 
         // This is how the data actualy looks like:
@@ -360,7 +380,7 @@ void* reciveAndSendData(void* arg)
             ------WebKitFormBoundary26cG8SgbDpzpYpYN--
         */
         // The file data is between the ------WebKitFormBoundary26cG8SgbDpzpYpYN and ------WebKitFormBoundary26cG8SgbDpzpYpYN--
-        // To be more specific after:
+        // To be more specific:
         /*
             Search for the line starting with Content-Disposition: and containing filename=.
             Skip the following empty line (\r\n) — this marks the start of the actual file bytes.
