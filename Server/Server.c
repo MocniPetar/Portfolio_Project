@@ -1,12 +1,12 @@
 #include "Server.h"
 
-#define PORT 8080
+#define PORT 50000
 
 int server_socket = 0;
 int fd = 0;
 
 struct Server server_constructor(int domain, int service, int protocol, char* ip, 
-    int port, int backlog, char* websiteDirectoryPath)
+   int backlog, char* websiteDirectoryPath)
 {
     struct Server server;
 
@@ -14,12 +14,12 @@ struct Server server_constructor(int domain, int service, int protocol, char* ip
     server.service = service;
     server.protocol = protocol;
     server.ip = ip;
-    server.port = port;
+    server.port = PORT;
     server.backlog = backlog;
     server.websiteDirectoryPath = websiteDirectoryPath;
 
-    server.address.sin_family = domain;
-    server.address.sin_port = htons(port);
+    server.address.sin_family = AF_INET;
+    server.address.sin_port = htons(PORT);
     inet_pton(server.domain, ip, &server.address.sin_addr.s_addr);
 
     server.socket = socket(server.domain, server.service, server.protocol);
@@ -49,7 +49,7 @@ struct Server server_constructor(int domain, int service, int protocol, char* ip
         printf("Error: %s\n", gai_strerror(error));
         exit(1);
     }
-    printf("\nServer is listening on http://%s:%d/\n\n", hostBuffer, server.port);
+    printf("\nServer is listening on http://%s:%d/\n\n", hostBuffer, ntohs(server.address.sin_port));
     return server;
 }   
 
@@ -118,6 +118,10 @@ void handle_response(char *response_buffer, char *request_url)
 
 bool establishingFilePathAndDataType(char *filePath, char *method, char *route, char *MIMEtype, size_t dir_path_size) 
 {   
+    if (strcmp(method, "POST") == 0 && strcmp(route, "/upload") == 0) {
+        // Call a function to parse the data from body
+    }
+
     if (strcmp(method, "GET") != 0)
     {
         printf("%s is an unacceptable method...\n", method);
@@ -301,11 +305,109 @@ bool sendResponse(int socket, char* method, char* route, char* siteDirectory)
     return true;
 }
 
+int parseRequestBody(struct ClientSocketDetails* client, ssize_t total_received, char* headers_end) {
+    ssize_t content_length = -1;
+    ssize_t recieved_bytes;
+
+    printf("(ssize_t)strlen(client->request_buffer): %lu\n", (ssize_t)strlen(client->request_buffer));
+    printf("(ssize_t)strlen(headers_end): %lu\n", (ssize_t)strlen(headers_end));
+
+    int header_length = (ssize_t)strlen(client->request_buffer) - (ssize_t)strlen(headers_end) + 4;
+
+    char *content_length_str = strstr(client->request_buffer, "Content-Length:");
+    if (content_length_str) {
+        sscanf(content_length_str, "Content-Length: %zd", &content_length);
+    }
+    printf("header_length: %d\n", header_length);
+    printf("content_length: %lu\n", content_length);
+    printf("total_received: %lu\n", total_received);
+
+    ssize_t body_received = total_received - header_length;
+    printf("body_received: %lu\n", body_received);
+
+    char *body = malloc(content_length + 1);
+    if (body_received > 0) {
+        memcpy(body, client->request_buffer + header_length, body_received);
+    }
+
+    while (body_received < content_length) {
+        recieved_bytes = recv(client->socket, body + body_received, content_length - body_received, 0);
+        if (recieved_bytes <= 0) break;
+        body_received += recieved_bytes;
+    }
+    body[content_length] = '\0';    
+
+    FILE* body_file = fopen("body.tar", "wb");
+    if (body_file == NULL) {
+        printf("Failed to create file...\n");
+        close(client->socket);
+        free(client);
+        return -1;
+    }
+    printf("Received size body: %zd bytes\n", body_received);
+    printf("Body:\n%s\n", body);
+
+    char *fileName = strstr(body, "filename=");
+    char* crlf_location_before_data = NULL;
+    char* crlf_location_after_data = NULL;
+    if (fileName) {
+        printf("1\n");
+        crlf_location_before_data = strstr(fileName, "\r\n\r\n");
+
+        if(crlf_location_before_data) {
+            printf("1.1\n");
+            crlf_location_after_data = strstr(crlf_location_before_data + 4, "\r\n\r\n");
+        }
+
+        if (crlf_location_after_data) {
+            printf("1.2\n");
+            size_t size_of_data = strlen(crlf_location_before_data) - strlen(crlf_location_after_data - 4);
+            if(fwrite(crlf_location_before_data + 4, 1, size_of_data, body_file) < size_of_data) {
+                printf("Failed to write the contents to the file...\n");
+                fclose(body_file);
+                free(body);
+                return -1;
+            }
+        }
+    }
+    else {
+        printf("2\n");
+        memcpy(body, "No body", strlen("No body"));
+        body[strlen("No body") + 1] = '\0';
+    }
+
+    // Do something with `body`...
+    // This is how the data actualy looks like:
+    /*
+        ------WebKitFormBoundary26cG8SgbDpzpYpYN
+
+        Content-Disposition: form-data; name="user-file"; filename="user_file.tar"
+        Content-Type: application/x-tar
+
+        <YOUR FILE BYTES HERE>
+
+        ------WebKitFormBoundary26cG8SgbDpzpYpYN--
+    */
+    // The file data is between the ------WebKitFormBoundary26cG8SgbDpzpYpYN and ------WebKitFormBoundary26cG8SgbDpzpYpYN--
+    // To be more specific:
+    /*
+        Search for the line starting with Content-Disposition: and containing filename=.
+        Skip the following empty line (\r\n) — this marks the start of the actual file bytes.
+        Read until the next boundary string (starts with ------WebKitFormBoundary...) — this marks the end of the file content.
+        This is where the rest of the data is located. The only reason why it is not shown in the terminal
+        is because %s in printf can not print the bytes that represent the file.
+    */
+    client->body = (char *)malloc(body_received * sizeof(char));
+    strcpy(client->body, body);
+    free(body);
+    fclose(body_file);
+    return 0;
+}
+
 void* reciveAndSendData(void* arg) 
 {
     struct ClientSocketDetails* client = (struct ClientSocketDetails*) arg;
     ssize_t total_received = 0;
-    ssize_t content_length = -1;
     char *headers_end;
     client->body = NULL;
     ssize_t recieved_bytes = recv(client->socket, client->request_buffer, MAX_REQUEST_SIZE - 1, 0);
@@ -329,87 +431,14 @@ void* reciveAndSendData(void* arg)
 
     headers_end = strstr(client->request_buffer, "\r\n\r\n");
     if (headers_end && strcmp(client->route, "/upload") == 0) {
-        printf("%s\n\n", client->request_buffer);
-        int header_length = headers_end - client->request_buffer + 4;
-
-        // Find Content-Length
-        char *content_length_str = strstr(client->request_buffer, "Content-Length:");
-        if (content_length_str) {
-            sscanf(content_length_str, "Content-Length: %zd", &content_length);
+        if(parseRequestBody(client, total_received, headers_end) == -1) {
+            printf("Failed to parse request body...\n");
+            dprintf(fd, "Failed to parse request body...\n");
         }
-
-        // Calculate how much of the body we already have
-        ssize_t body_received = total_received - header_length;
-
-        // Allocate buffer to hold the entire body
-        char *body = malloc(content_length + 1);
-        if (body_received > 0) {
-            memcpy(body, client->request_buffer + header_length, body_received);
-        }
-
-        // Read the rest of the body
-        while (body_received < content_length) {
-            recieved_bytes = recv(client->socket, body + body_received, content_length - body_received, 0);
-            if (recieved_bytes <= 0) break;
-            body_received += recieved_bytes;
-        }
-
-        body[content_length] = '\0'; // Null-terminate if needed
-        printf("Received size body: %zd bytes\n", body_received);
-        printf("Received body content: \n%s", body);
-        puts("\n");
-
-        // char *fileName = "user_file.tar";
-        // char *endOfHeaders = strstr(body, "\r\n");
-        // if (endOfHeaders) {
-            
-        // }
-
-        int char_r_counter = 0;
-        for(int i = 0; i < content_length; i++) {
-            if(body[i] == '\r') {
-                printf("%d\n", i);
-                char_r_counter++;
-            }
-
-            if (char_r_counter == 3) {
-                printf("%d\n", i);
-                printf("%c%c%c\n", body[i-3], body[i-2], body[i-1]);
-                break;
-            }
-        }
-
-        // Do something with `body`...
-
-        // This is how the data actualy looks like:
-        /*
-            ------WebKitFormBoundary26cG8SgbDpzpYpYN
-            Content-Disposition: form-data; name="user-file"; filename="user_file.tar"
-            Content-Type: application/x-tar
-
-            <YOUR FILE BYTES HERE>
-
-            ------WebKitFormBoundary26cG8SgbDpzpYpYN--
-        */
-        // The file data is between the ------WebKitFormBoundary26cG8SgbDpzpYpYN and ------WebKitFormBoundary26cG8SgbDpzpYpYN--
-        // To be more specific:
-        /*
-            Search for the line starting with Content-Disposition: and containing filename=.
-            Skip the following empty line (\r\n) — this marks the start of the actual file bytes.
-            Read until the next boundary string (starts with ------WebKitFormBoundary...) — this marks the end of the file content.
-
-            This is where the rest of the data is located. The only reason why it is not shown in the terminal
-            is because %s in printf can not print the bytes that represent the file.
-        */
-
-        client->body = (char *)malloc(body_received * sizeof(char));
-        strcpy(client->body, body);
-        free(body);
     }
     if(!sendResponse(client->socket, client->method, client->route, client->siteDirectory)) {
         printf("Failed to send response to client...\n");
         dprintf(fd, "Failed to send response to client...\n");
-        exit(1);
     }
     
     if (client->body != NULL) { free(client->body); }
@@ -485,7 +514,7 @@ int main (int argc, char **argv)
     }
 
     // This is executed only once to create the server socket
-    struct Server server = server_constructor(AF_INET, SOCK_STREAM, 0, "127.0.0.1", PORT, 10, argv[1]);
+    struct Server server = server_constructor(PF_INET, SOCK_STREAM, 0, "127.0.0.1", 10, argv[1]);
     server_socket = server.socket;
 
     int address_length = sizeof(server.address);
