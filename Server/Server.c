@@ -520,7 +520,7 @@ int main (int argc, char **argv)
     int address_length = sizeof(server.address);
     int client_socket = 0;
     
-    // Waiting for a client request
+    // Waiting for a client
     while(true)
     {
         dprintf(fd, "\n===== WAITING =====\n");
