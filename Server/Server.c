@@ -1,17 +1,16 @@
-#include "Server.h"
+#include "headers/Server.h"
 
-#define PORT 50000
+#define PORT 8080
 
 int server_socket = 0;
 int fd = 0;
 
-struct Server server_constructor(int domain, int service, int protocol, char* ip, 
+struct Server server_constructor(int protocol, char* ip, 
    int backlog, char* websiteDirectoryPath)
 {
     struct Server server;
 
-    server.domain = domain;
-    server.service = service;
+    server.service = SOCK_STREAM;
     server.protocol = protocol;
     server.ip = ip;
     server.port = PORT;
@@ -20,9 +19,9 @@ struct Server server_constructor(int domain, int service, int protocol, char* ip
 
     server.address.sin_family = AF_INET;
     server.address.sin_port = htons(PORT);
-    inet_pton(server.domain, ip, &server.address.sin_addr.s_addr);
+    server.address.sin_addr.s_addr = htonl(INADDR_ANY);
 
-    server.socket = socket(server.domain, server.service, server.protocol);
+    server.socket = socket(PF_INET, server.service, server.protocol);
 
     if (server.socket < 0)
     {
@@ -49,7 +48,7 @@ struct Server server_constructor(int domain, int service, int protocol, char* ip
         printf("Error: %s\n", gai_strerror(error));
         exit(1);
     }
-    printf("\nServer is listening on http://%s:%d/\n\n", hostBuffer, ntohs(server.address.sin_port));
+    printf("\nServer is listening on http://localhost:%d/\n\n", ntohs(server.address.sin_port));
     return server;
 }   
 
@@ -475,6 +474,7 @@ void handle_sigint(int sig) {
 }
 
 void cleanup() {
+    dprintf(fd, "End of session...\n");
     close(fd);
     close(server_socket);
     printf("Closing file descriptors and sockets...\n");
@@ -508,13 +508,13 @@ int main (int argc, char **argv)
 
     printf("\nSuccessfully located the project build directory...\n");
 
-    if ((fd = open("logs.txt", O_WRONLY | O_CREAT | O_TRUNC, 0644)) == -1) {
+    if ((fd = open("./logs/output.txt", O_WRONLY | O_CREAT | O_TRUNC, 0644)) == -1) {
         fprintf(stderr, "Cannot open log file...\n");
         exit(-1);
     }
 
     // This is executed only once to create the server socket
-    struct Server server = server_constructor(PF_INET, SOCK_STREAM, 0, "127.0.0.1", 10, argv[1]);
+    struct Server server = server_constructor(0, "172.19.0.2", 10, argv[1]);
     server_socket = server.socket;
 
     int address_length = sizeof(server.address);
