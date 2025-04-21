@@ -119,6 +119,7 @@ bool establishingFilePathAndDataType(char *filePath, char *method, char *route, 
 {   
     if (strcmp(method, "POST") == 0 && strcmp(route, "/upload") == 0) {
         // Call a function to parse the data from body
+        return false;
     }
 
     if (strcmp(method, "GET") != 0)
@@ -129,6 +130,7 @@ bool establishingFilePathAndDataType(char *filePath, char *method, char *route, 
 
     size_t route_length = strlen(route);
     size_t index_size = strlen("/index.html");
+    size_t filePath_size = strlen(filePath);
     int index = 0, slashIndex = 0;
 
     for (int i = 0; i < route_length; i++) 
@@ -140,18 +142,18 @@ bool establishingFilePathAndDataType(char *filePath, char *method, char *route, 
     {
         snprintf(MIMEtype, 16, "%s", &route[index]);
         if (strcmp(&route[slashIndex], "/not_found.css") == 0) {
-            snprintf(filePath, 256, "../WebSite/not_found/not_found.css");
+            snprintf(filePath, 256, "../WebSite/src/pages/not_found/not_found.css");
         }
         else if (strcmp(MIMEtype, ".css") == 0) {
-            strncpy(filePath + dir_path_size, route, 256 - strlen(filePath) - 1);
+            strncpy(filePath + dir_path_size, route, 256 - filePath_size - 1);
             filePath[strlen(filePath) + 1] = '\0';
         }
         else if (strcmp(MIMEtype, ".js") == 0) {
-            strncpy(filePath + dir_path_size, route, 256 - strlen(filePath) - 1);
+            strncpy(filePath + dir_path_size, route, 256 - filePath_size - 1);
             filePath[strlen(filePath) + 1] = '\0';
         }
     }
-    else 
+    else
     {   
         snprintf(MIMEtype, 16, ".html");
         if (route[route_length - 1] == '/') {
@@ -162,13 +164,13 @@ bool establishingFilePathAndDataType(char *filePath, char *method, char *route, 
             strcpy(routeWithIndex, route);
             strcpy(routeWithIndex + route_length, "/index.html");
             routeWithIndex[index_size + route_length + 1] = '\0';
-            strncpy(filePath + dir_path_size, routeWithIndex, 256 - strlen(filePath) - 1);
+            strncpy(filePath + dir_path_size, routeWithIndex, 256 - filePath_size - 1);
         }
 
         filePath[strlen(filePath) + 1] = '\0';
     }
     
-    printf("%s\n", filePath);
+    printf("(Logs) Requested paths: %s\n", filePath);
     if (access(filePath, F_OK) != 0) {
         printf("%s\n", filePath);
         printf("File does not exist. Routing to not fount...\n");
@@ -181,7 +183,6 @@ bool establishingFilePathAndDataType(char *filePath, char *method, char *route, 
 
 int createResponse(char *fullPath, char *MIMEtype, char **response_buffer) 
 {
-
     // Check if backend end point exists from the fullPath (using if-else statements)
     // Call backend function and process the data if exists
     // Return backend response from here

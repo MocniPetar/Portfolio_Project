@@ -1,0 +1,16 @@
+services:
+  frontend:
+    image: webapp
+    container_name: webapp-container
+    tty: true
+    networks:
+      - web-net
+    ports:
+      - 8080:8080
+    volumes:
+      - ./home/Server/logs:/home/ubuntu/Server/logs
+
+networks:
+  web-net:
+    name: website-network
+    external: true

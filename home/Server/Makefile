@@ -8,8 +8,6 @@ all: $(TARGETS)
 start_server: Server.o
 	@echo "Linking..."
 	@$(CC) $(CFLAGS) Server.c -o run_server -lcurl
-	@mv run_server ./executable
-	@echo "You can run the server by navigating to the executable folder and run ./run_server ../Website/main in the terminal..."
 
 %.o:%.c
 	@echo "Compiling..."
@@ -18,3 +16,5 @@ start_server: Server.o
 clean:
 	@echo "Cleaning folder..."
 	@rm -f *.o
+	@echo "Starting the server..."
+	./run_server ../WebSite/src
