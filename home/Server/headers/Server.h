@@ -31,7 +31,6 @@ struct Server
     int port;
     int backlog;
     int socket;
-    char *websiteDirectoryPath;
 
     struct sockaddr_in address;
 };

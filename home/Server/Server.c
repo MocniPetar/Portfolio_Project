@@ -6,7 +6,7 @@ int server_socket = 0;
 int fd = 0;
 
 struct Server server_constructor(int protocol, char* ip, 
-   int backlog, char* websiteDirectoryPath)
+   int backlog)
 {
     struct Server server;
 
@@ -15,7 +15,6 @@ struct Server server_constructor(int protocol, char* ip,
     server.ip = ip;
     server.port = PORT;
     server.backlog = backlog;
-    server.websiteDirectoryPath = websiteDirectoryPath;
 
     server.address.sin_family = AF_INET;
     server.address.sin_port = htons(PORT);
@@ -25,19 +24,19 @@ struct Server server_constructor(int protocol, char* ip,
 
     if (server.socket < 0)
     {
-        perror("Failed to connect socket...\n");
+        perror("(Log) Failed to connect socket...\n");
         exit(1);
     }
 
     if (bind(server.socket, (struct sockaddr *)&server.address, sizeof(server.address)) < 0)
     {
-        perror("Failed to bind socket...\n");
+        perror("(Log) Failed to bind socket...\n");
         exit(1);
     }
 
     if (listen(server.socket, server.backlog) < 0)
     {
-        perror("Failed to start listening...\n");
+        perror("(Log) Failed to start listening...\n");
         exit(1);
     }
     
@@ -45,10 +44,10 @@ struct Server server_constructor(int protocol, char* ip,
     int error = getnameinfo((struct sockaddr *)&server.address, sizeof(server.address), hostBuffer, sizeof(hostBuffer), serviceBuffer, sizeof(serviceBuffer), 0);
     
     if (error != 0) {
-        printf("Error: %s\n", gai_strerror(error));
+        printf("(Log) Error: %s\n", gai_strerror(error));
         exit(1);
     }
-    printf("\nServer is listening on http://localhost:%d/\n\n", ntohs(server.address.sin_port));
+    printf("\n(Log) Server is listening on http://localhost:%d/\n\n", ntohs(server.address.sin_port));
     return server;
 }   
 
@@ -129,16 +128,14 @@ bool establishingFilePathAndDataType(char *filePath, char *method, char *MIMEtyp
     }
 
     ssize_t filePathLength = strlen(filePath);
-    printf("(Logs) File path: %s --- File Path Size: %ld\n", filePath, filePathLength);
-    bool foundDot = false;
+    printf("(Log) File path: %s --- File Path Size: %ld\n", filePath, filePathLength);
     for (int i = 2; i < (int)filePathLength; i++) {
         if (filePath[i] == '.') { 
             snprintf(MIMEtype, 16, "%s", &filePath[i]);
-            foundDot = true;
             break;
         }
     }
-    if(!foundDot)
+    if(strlen(MIMEtype) < 1)
     {
         if (filePath[filePathLength-1] == '/')
             strcat(filePath, "index.html");
@@ -148,9 +145,9 @@ bool establishingFilePathAndDataType(char *filePath, char *method, char *MIMEtyp
         filePath[strlen(filePath) + 1] = '\0';
     }
     
-    printf("(Logs) Requested paths: %s\n", filePath);
+    printf("(Log) Requested paths: %s\n\n", filePath);
     if (access(filePath, F_OK) != 0) {
-        printf("(Logs) File does not exist. Re-routing client to not found...\n\n");
+        printf("(Log) File does not exist. Re-routing client to not found...\n\n");
         snprintf(filePath, 256, "../WebSite/src/pages/not_found/index.html");
         snprintf(MIMEtype, 16, ".html");
     }
@@ -268,20 +265,6 @@ int writingAndSendingAResoponse(int socket, char* filePath, char* MIMEtype)
 
 bool sendResponse(int socket, char* method, char* route)
 {
-    
-    // -------- IMPORTANT -------- //
-    // Change the siteDirectory if navigating to different pages that are in different directories
-    /*
-        Example:
-            Routing to /pages/about
-            Then do:
-                1. Create a new char[] that start with the siteDirectory string and append /pages/about
-                    at the end of it
-                2. Assign the value of new char[] to siteDirectory
-                3. Do this every time when encountering / in the route char[]
-    */
-   // -------- IMPORTANT -------- //
-
     char filePath[1024];
     char MIMEtype[16];
     snprintf(filePath, sizeof(filePath), "%s", route);
@@ -430,7 +413,7 @@ void* reciveAndSendData(void* arg)
 
     char* temp_route = (char *)malloc(routeLength + dirLength + 1);
     if (temp_route == NULL) {
-        printf("(Logs): Failed to allocate memory using malloc for temp_route...\n");
+        printf("(Log) Failed to allocate memory using malloc for temp_route...\n");
         close(client->socket);
         free(client);
         pthread_exit(NULL);
@@ -452,7 +435,7 @@ void* reciveAndSendData(void* arg)
     // }
     
     if(!sendResponse(client->socket, client->method, client->route)) {
-        printf("Failed to send response to client...\n");
+        printf("(Log) Failed to send response to client...\n");
         dprintf(fd, "Failed to send response to client...\n");
     }
     
@@ -476,6 +459,7 @@ void reciveAndSendDataOnSeparateThread(int client_socket, char *webSiteDirPath)
     }
     client->socket = client_socket;
     strcpy(client->siteDirectory, webSiteDirPath);
+    client->siteDirectory[strlen(client->siteDirectory) + 1] = '\0';
 
     int thread = pthread_create(&id, NULL, reciveAndSendData, client);
     if (thread != 0) {
@@ -533,7 +517,7 @@ int main (int argc, char **argv)
     }
 
     // This is executed only once to create the server socket
-    struct Server server = server_constructor(0, "172.19.0.2", 10, argv[1]);
+    struct Server server = server_constructor(0, "172.19.0.2", 10);
     server_socket = server.socket;
 
     int address_length = sizeof(server.address);
@@ -553,7 +537,7 @@ int main (int argc, char **argv)
         }
 
         // Create multiple threads
-        reciveAndSendDataOnSeparateThread(client_socket, server.websiteDirectoryPath);
+        reciveAndSendDataOnSeparateThread(client_socket, argv[1]);
     }
     exit(0);
 }
