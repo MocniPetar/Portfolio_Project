@@ -115,12 +115,12 @@ void handle_response(char *response_buffer, char *request_url)
     free(response.string);
 }
 
-bool establishingFilePathAndDataType(char *filePath, char *method, char *route, char *MIMEtype, size_t dir_path_size) 
+bool establishingFilePathAndDataType(char *filePath, char *method, char *MIMEtype) 
 {   
-    if (strcmp(method, "POST") == 0 && strcmp(route, "/upload") == 0) {
-        // Call a function to parse the data from body
-        return false;
-    }
+    // if (strcmp(method, "POST") == 0 && strcmp(route, "/upload") == 0) {
+    //     // Call a function to parse the data from body
+    //     return false;
+    // }
 
     if (strcmp(method, "GET") != 0)
     {
@@ -128,53 +128,30 @@ bool establishingFilePathAndDataType(char *filePath, char *method, char *route, 
         return false;
     }
 
-    size_t route_length = strlen(route);
-    size_t index_size = strlen("/index.html");
-    size_t filePath_size = strlen(filePath);
-    int index = 0, slashIndex = 0;
-
-    for (int i = 0; i < route_length; i++) 
-    {
-        if (route[i] == '.') { index = i; break; }
-        if (route[i] == '/') { slashIndex = i; }
-    }
-    if (index > 0)
-    {
-        snprintf(MIMEtype, 16, "%s", &route[index]);
-        if (strcmp(&route[slashIndex], "/not_found.css") == 0) {
-            snprintf(filePath, 256, "../WebSite/src/pages/not_found/not_found.css");
-        }
-        else if (strcmp(MIMEtype, ".css") == 0) {
-            strncpy(filePath + dir_path_size, route, 256 - filePath_size - 1);
-            filePath[strlen(filePath) + 1] = '\0';
-        }
-        else if (strcmp(MIMEtype, ".js") == 0) {
-            strncpy(filePath + dir_path_size, route, 256 - filePath_size - 1);
-            filePath[strlen(filePath) + 1] = '\0';
+    ssize_t filePathLength = strlen(filePath);
+    printf("(Logs) File path: %s --- File Path Size: %ld\n", filePath, filePathLength);
+    bool foundDot = false;
+    for (int i = 2; i < (int)filePathLength; i++) {
+        if (filePath[i] == '.') { 
+            snprintf(MIMEtype, 16, "%s", &filePath[i]);
+            foundDot = true;
+            break;
         }
     }
-    else
-    {   
+    if(!foundDot)
+    {
+        if (filePath[filePathLength-1] == '/')
+            strcat(filePath, "index.html");
+        else
+            strcat(filePath, "/index.html");
         snprintf(MIMEtype, 16, ".html");
-        if (route[route_length - 1] == '/') {
-            strcpy(filePath + dir_path_size, "/index.html");
-        }
-        else {
-            char routeWithIndex[index_size + route_length + 8];
-            strcpy(routeWithIndex, route);
-            strcpy(routeWithIndex + route_length, "/index.html");
-            routeWithIndex[index_size + route_length + 1] = '\0';
-            strncpy(filePath + dir_path_size, routeWithIndex, 256 - filePath_size - 1);
-        }
-
         filePath[strlen(filePath) + 1] = '\0';
     }
     
     printf("(Logs) Requested paths: %s\n", filePath);
     if (access(filePath, F_OK) != 0) {
-        printf("%s\n", filePath);
-        printf("File does not exist. Routing to not fount...\n");
-        snprintf(filePath, 256, "../WebSite/not_found/index.html");
+        printf("(Logs) File does not exist. Re-routing client to not found...\n\n");
+        snprintf(filePath, 256, "../WebSite/src/pages/not_found/index.html");
         snprintf(MIMEtype, 16, ".html");
     }
 
@@ -217,6 +194,9 @@ int createResponse(char *fullPath, char *MIMEtype, char **response_buffer)
         }
         else if (strcmp(MIMEtype, ".js") == 0) {
             snprintf(response_setup_string, sizeof(response_setup_string), "HTTP/1.1 200 OK\r\nContent-Type: text/javascript; charset=UTF-8\r\nConnection: keep-alive\r\n\r\n");
+        }
+        else if (strcmp(MIMEtype, ".svg") == 0) {
+            snprintf(response_setup_string, sizeof(response_setup_string), "HTTP/1.1 200 OK\r\nContent-Type: image/svg+xml; charset=UTF-8\r\nConnection: keep-alive\r\n\r\n");
         }
 
         size_t response_setup_size = strlen(response_setup_string);
@@ -286,14 +266,28 @@ int writingAndSendingAResoponse(int socket, char* filePath, char* MIMEtype)
     return 1;
 }
 
-bool sendResponse(int socket, char* method, char* route, char* siteDirectory)
+bool sendResponse(int socket, char* method, char* route)
 {
+    
+    // -------- IMPORTANT -------- //
+    // Change the siteDirectory if navigating to different pages that are in different directories
+    /*
+        Example:
+            Routing to /pages/about
+            Then do:
+                1. Create a new char[] that start with the siteDirectory string and append /pages/about
+                    at the end of it
+                2. Assign the value of new char[] to siteDirectory
+                3. Do this every time when encountering / in the route char[]
+    */
+   // -------- IMPORTANT -------- //
+
     char filePath[1024];
     char MIMEtype[16];
-    snprintf(filePath, sizeof(filePath), "%s", siteDirectory);
-    size_t dir_length = strlen(siteDirectory);
+    snprintf(filePath, sizeof(filePath), "%s", route);
 
-    if(!establishingFilePathAndDataType(filePath, method, route, MIMEtype, dir_length)) 
+    // Just send filePath, method and MIMEType
+    if(!establishingFilePathAndDataType(filePath, method, MIMEtype)) 
     {
         printf("Failed to establish file path and data type...\n");
         dprintf(fd, "Failed to establish file path and data type...\n");
@@ -407,9 +401,12 @@ int parseRequestBody(struct ClientSocketDetails* client, ssize_t total_received,
 void* reciveAndSendData(void* arg) 
 {
     struct ClientSocketDetails* client = (struct ClientSocketDetails*) arg;
-    ssize_t total_received = 0;
-    char *headers_end;
-    client->body = NULL;
+
+    /* At this stage this code is not needed! */
+    // ssize_t total_received = 0;
+    // char *headers_end;
+    // client->body = NULL;
+
     ssize_t recieved_bytes = recv(client->socket, client->request_buffer, MAX_REQUEST_SIZE - 1, 0);
 
     if (recieved_bytes < 0)
@@ -427,23 +424,44 @@ void* reciveAndSendData(void* arg)
     sscanf(client->request_buffer, "%s %s", client->method, client->route);
     client->method[strlen(client->method) + 1] = '\0';
     client->route[strlen(client->route) + 1] = '\0';
-    total_received += recieved_bytes;
 
-    headers_end = strstr(client->request_buffer, "\r\n\r\n");
-    if (headers_end && strcmp(client->route, "/upload") == 0) {
-        if(parseRequestBody(client, total_received, headers_end) == -1) {
-            printf("Failed to parse request body...\n");
-            dprintf(fd, "Failed to parse request body...\n");
-        }
+    ssize_t dirLength = strlen(client->siteDirectory);
+    ssize_t routeLength = strlen(client->route);
+
+    char* temp_route = (char *)malloc(routeLength + dirLength + 1);
+    if (temp_route == NULL) {
+        printf("(Logs): Failed to allocate memory using malloc for temp_route...\n");
+        close(client->socket);
+        free(client);
+        pthread_exit(NULL);
     }
-    if(!sendResponse(client->socket, client->method, client->route, client->siteDirectory)) {
+
+    strcpy(temp_route, client->siteDirectory);
+    strcat(temp_route, client->route);
+    temp_route[routeLength + dirLength] = '\0';
+    strcpy(client->route, temp_route);
+
+    /* At this stage this code is not needed! */
+    // total_received += recieved_bytes;
+    // headers_end = strstr(client->request_buffer, "\r\n\r\n");
+    // if (headers_end && strcmp(client->route, "/upload") == 0) {
+    //     if(parseRequestBody(client, total_received, headers_end) == -1) {
+    //         printf("Failed to parse request body...\n");
+    //         dprintf(fd, "Failed to parse request body...\n");
+    //     }
+    // }
+    
+    if(!sendResponse(client->socket, client->method, client->route)) {
         printf("Failed to send response to client...\n");
         dprintf(fd, "Failed to send response to client...\n");
     }
     
-    if (client->body != NULL) { free(client->body); }
+     /* At this stage this code is not needed! */
+    // if (client->body != NULL) { free(client->body); }
+
     close(client->socket);
     free(client);
+    free(temp_route);
     pthread_exit(NULL);
 }
 

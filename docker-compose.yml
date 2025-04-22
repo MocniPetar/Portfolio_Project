@@ -1,6 +1,8 @@
 services:
   frontend:
     image: webapp
+    build:
+      context: .
     container_name: webapp-container
     tty: true
     networks:

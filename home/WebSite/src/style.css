@@ -53,36 +53,23 @@ header #icon-links a:hover {
 main {
     position: relative;
     width: 100%;
-    height: 100%;
     background-color: #1B1B1B;
     padding: 1%;
     box-sizing: border-box;
-    display: grid;
-    grid-template-rows: repeat(4, auto);
+    display: flex;
+    flex-direction: column;
     gap: 2%;
-    justify-items: center;
 }
-main h1 {
-    justify-self: flex-start;
-    color: #582688;
-}
+main h1 { color: #582688; }
 main div { color: white; }
-
-main #short-desc {
-    justify-self: flex-start;
-    margin-left: 2%;
-}
-main #page-details {
-    display: flex;
-    width: 80%;
-    padding: 3%;
-}
-main #tech-details {
-    display: flex;
-    width: 80%;
-    padding: 3%;
-    justify-content: flex-end;
-    right: 30%;
+main img { height: 22em; width: 22em; }
+main #short-desc { margin-left: 3.5%; }
+main #page-details, main #tech-details {
+    display: inline-flex;
+    width: 90%;
+    margin-left: 5%;
+    justify-content: space-around;
+    align-items: center;
 }
 
 footer {
@@ -90,18 +77,18 @@ footer {
     width: 100%;
     background-color: #582688;
     border-top: 1px solid rgba(255, 255, 255, 0.3);
-    padding: 2%;
-
+    padding: 1%;
     display: grid;
     grid-template-columns: 1fr 1fr;
     justify-items: center;
     align-items: center;
 }
-footer #footer-links {
+footer #footer-links i {
     font-size: 24px;
     color: black;
 }
 footer #footer-links a {
+    font-size: 18px;
     color: black;
     text-decoration: none;
     font-weight: 400;
@@ -116,9 +103,9 @@ footer .link-alignment {
     align-items: center;
 }
 
-footer #funy-word {
+footer #funy-sentence {
     color: black;
-    font-size: 24px;
+    font-size: 18px;
     font-weight: 400;
     text-align: right;
 }
