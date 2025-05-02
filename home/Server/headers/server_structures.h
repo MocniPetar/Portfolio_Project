@@ -1,56 +1,49 @@
-#ifndef Server_h
-#define Server_h
+#ifndef server_structures_h
+#define server_structures_h
 
-#include <unistd.h>
 #include <string.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <pthread.h>
+#include <unistd.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <sys/types.h>
 #include <netdb.h>
-#include <signal.h>
 #include <time.h>
-#include <stdbool.h>
 #include <fcntl.h>
 #include <netdb.h>
 #include <curl/curl.h>
 #include <dirent.h>
 #include <errno.h>
-#include <pthread.h>
+#include <stdbool.h>
 
-#define MAX_REQUEST_SIZE 2048
+#define MAX_REQUEST_SIZE 4096
+#define PORT 8080
 
-struct Server 
+struct serverStructure 
 {
-    int domain;
-    int service;
-    int protocol;
-    char* ip;
-    int port;
-    int backlog;
     int socket;
-
     struct sockaddr_in address;
 };
 
+// Not needed for now
 struct Response 
 {
     char *string;
     size_t size;
 };
 
-struct ClientSocketDetails 
+struct Client 
 {
     int socket;
+    int fd;
     char method[16];
     char route[256];
-    char siteDirectory[256];
-    char request_buffer[MAX_REQUEST_SIZE];
-    char* body;
+    char dir[256];
+    char requestBuffer[MAX_REQUEST_SIZE];
+    // char* body;
 };
-
-void reciveAndSendDataOnSeparateThread(int client_socket, char *webSiteDirPath);
 
 #endif

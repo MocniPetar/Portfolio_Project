@@ -1,17 +1,17 @@
 CC = /usr/bin/gcc
-CFLAGS = -Wall -O2 -fsanitize=address -g
+CFLAGS = -Wall -O2 -fsanitize=address -g -lcurl
 TARGETS = start_server clean
 
 default: all
 all: $(TARGETS)
 
-start_server: Server.o
+start_server: components/main.o
 	@echo "Linking..."
-	@$(CC) $(CFLAGS) Server.c -o run_server -lcurl
+	@$(CC) $(CFLAGS) components/main.c components/server_starting.c components/server_response.c -o run_server
 
 %.o:%.c
 	@echo "Compiling..."
-	@$(CC) $(CFLAGS) -c $< 
+	@$(CC) $(CFLAGS) -c $<
 
 clean:
 	@echo "Cleaning folder..."

@@ -5,15 +5,12 @@
 int server_socket = 0;
 int fd = 0;
 
-struct Server server_constructor(int protocol, char* ip, 
-   int backlog)
+struct Server server_constructor(int protocol, int backlog)
 {
     struct Server server;
 
     server.service = SOCK_STREAM;
     server.protocol = protocol;
-    server.ip = ip;
-    server.port = PORT;
     server.backlog = backlog;
 
     server.address.sin_family = AF_INET;
@@ -47,7 +44,8 @@ struct Server server_constructor(int protocol, char* ip,
         printf("(Log) Error: %s\n", gai_strerror(error));
         exit(1);
     }
-    printf("\n(Log) Server is listening on http://localhost:%d/\n\n", ntohs(server.address.sin_port));
+
+    printf("\n(Log) Server is listening on http://%s:%d/\n\n", hostBuffer ,ntohs(server.address.sin_port));
     return server;
 }   
 
@@ -128,7 +126,6 @@ bool establishingFilePathAndDataType(char *filePath, char *method, char *MIMEtyp
     }
 
     ssize_t filePathLength = strlen(filePath);
-    printf("(Log) File path: %s --- File Path Size: %ld\n", filePath, filePathLength);
     for (int i = 2; i < (int)filePathLength; i++) {
         if (filePath[i] == '.') { 
             snprintf(MIMEtype, 16, "%s", &filePath[i]);
@@ -141,11 +138,11 @@ bool establishingFilePathAndDataType(char *filePath, char *method, char *MIMEtyp
             strcat(filePath, "index.html");
         else
             strcat(filePath, "/index.html");
+        
         snprintf(MIMEtype, 16, ".html");
         filePath[strlen(filePath) + 1] = '\0';
     }
     
-    printf("(Log) Requested paths: %s\n\n", filePath);
     if (access(filePath, F_OK) != 0) {
         printf("(Log) File does not exist. Re-routing client to not found...\n\n");
         snprintf(filePath, 256, "../WebSite/src/pages/not_found/index.html");
@@ -199,30 +196,28 @@ int createResponse(char *fullPath, char *MIMEtype, char **response_buffer)
         size_t response_setup_size = strlen(response_setup_string);
         
         fseek(file, 0, SEEK_END);
-        size_t file_size = ftell(file);
+        ssize_t file_size = ftell(file);
         fseek(file, 0, SEEK_SET);
 
         file_buffer = (char *)malloc(file_size + 1);
         if (file_buffer == NULL)
         {
-            fprintf(stderr, "Failed to allocate memory...\n");
-            dprintf(fd, "Failed to allocate memory...\n");
+            fprintf(stderr, "(Log) Failed to allocate memory...\n");
+            dprintf(fd, "(Log) Failed to allocate memory...\n");
             fclose(file);
             return 0;
         }
 
         if(fread(file_buffer, 1, file_size, file) <= 0) {
-            fprintf(stderr, "Failed to read data from file...\n");
-            dprintf(fd, "Failed to read data from file...\n");
+            fprintf(stderr, "(Log) Failed to read data from file...\n");
+            dprintf(fd, "(Log) Failed to read data from file...\n");
             free(file_buffer);
             fclose(file);
             return 0;
         }
-
         file_buffer[file_size] = '\0';
 
-        size_t new_response_buffer_size = response_setup_size + file_size + 1;
-        *response_buffer = (char *)malloc(new_response_buffer_size);
+        *response_buffer = (char *)malloc(response_setup_size + file_size + 1);
         if (*response_buffer == NULL) {
             fprintf(stderr, "Failed to allocate memory...\n");
             dprintf(fd, "Failed to allocate memory...\n");
@@ -247,15 +242,15 @@ int writingAndSendingAResoponse(int socket, char* filePath, char* MIMEtype)
     }
     
     if (response_buffer == NULL) {
-        fprintf(stderr, "Failed to create response...\n");
-        dprintf(fd, "Failed to create response...\n");
+        fprintf(stderr, "(Log) Failed to create response...\n");
+        dprintf(fd, "(Log) Failed to create response...\n");
         return 0;
     }
 
     if (send(socket, response_buffer, strlen(response_buffer), 0) < 0)
     {
-        fprintf(stderr, "Failed to send response...\n");
-        dprintf(fd, "Failed to send response...\n");
+        fprintf(stderr, "(Log) Failed to send response...\n");
+        dprintf(fd, "(Log) Failed to send response...\n");
         return 0;
     }
 
@@ -381,7 +376,7 @@ int parseRequestBody(struct ClientSocketDetails* client, ssize_t total_received,
     return 0;
 }
 
-void* reciveAndSendData(void* arg) 
+void* reciveAndSendData(void* arg)
 {
     struct ClientSocketDetails* client = (struct ClientSocketDetails*) arg;
 
@@ -391,17 +386,15 @@ void* reciveAndSendData(void* arg)
     // client->body = NULL;
 
     ssize_t recieved_bytes = recv(client->socket, client->request_buffer, MAX_REQUEST_SIZE - 1, 0);
+    client->request_buffer[recieved_bytes] = '\0';
 
     if (recieved_bytes < 0)
     {
-        fprintf(stderr, "Failed to read request_buffer to socket...\n");
-        dprintf(fd, "Failed to read request_buffer to socket...\n");
-        close(client->socket);
+        fprintf(stderr, "(Log) Failed to read request_buffer to socket...\n");
+        dprintf(fd, "(Log) Failed to read request_buffer to socket...\n");
         free(client);
-        pthread_exit(NULL);
-        exit(1);
+        return NULL;
     }
-    client->request_buffer[recieved_bytes] = '\0';
 
     dprintf(fd, "%s\n", client->request_buffer);
     sscanf(client->request_buffer, "%s %s", client->method, client->route);
@@ -414,9 +407,8 @@ void* reciveAndSendData(void* arg)
     char* temp_route = (char *)malloc(routeLength + dirLength + 1);
     if (temp_route == NULL) {
         printf("(Log) Failed to allocate memory using malloc for temp_route...\n");
-        close(client->socket);
         free(client);
-        pthread_exit(NULL);
+        return NULL;
     }
 
     strcpy(temp_route, client->siteDirectory);
@@ -436,39 +428,41 @@ void* reciveAndSendData(void* arg)
     
     if(!sendResponse(client->socket, client->method, client->route)) {
         printf("(Log) Failed to send response to client...\n");
-        dprintf(fd, "Failed to send response to client...\n");
+        dprintf(fd, "(Log) Failed to send response to client...\n");
     }
     
      /* At this stage this code is not needed! */
     // if (client->body != NULL) { free(client->body); }
 
-    close(client->socket);
     free(client);
     free(temp_route);
-    pthread_exit(NULL);
+    return NULL;
 }
 
-void reciveAndSendDataOnSeparateThread(int client_socket, char *webSiteDirPath) 
+int reciveAndSendDataOnSeparateThread(int client_socket, char *webSiteDirPath) 
 {
-    pthread_t id;
     struct ClientSocketDetails* client = (struct ClientSocketDetails*)malloc(sizeof(struct ClientSocketDetails));
-
+    
     if (client == NULL) {
         fprintf(stderr, "Memory allocation failed!\n");
-        exit(1);
+        return -1;
     }
+    
     client->socket = client_socket;
     strcpy(client->siteDirectory, webSiteDirPath);
     client->siteDirectory[strlen(client->siteDirectory) + 1] = '\0';
-
-    int thread = pthread_create(&id, NULL, reciveAndSendData, client);
-    if (thread != 0) {
-        fprintf(stderr, "Failed to create thread. Error code: %d\n", thread);
-        dprintf(fd, "Failed to create thread. Error code: %d\n", thread);
+    
+    pthread_t thread;
+    int result = pthread_create(&thread, NULL, reciveAndSendData, client);
+    if (result != 0) {
+        fprintf(stderr, "Failed to create thread. Error code: %ld\n", thread);
+        dprintf(fd, "Failed to create thread. Error code: %ld\n", thread);
         free(client);
-        exit(1);
+        return -1;
     }
-    pthread_join(id, NULL);
+
+    pthread_join(thread, NULL);
+    return 0;
 }
 
 void handle_sigint(int sig) {
@@ -500,11 +494,9 @@ int main (int argc, char **argv)
     }
 
     DIR *dir = opendir(argv[1]);
-    if (dir) 
-    {
+    if (dir) {
         closedir(dir);
-    } else 
-    {
+    } else {
         printf("Failed to locate/open project build directory...\n");
         exit(1);
     }
@@ -517,7 +509,7 @@ int main (int argc, char **argv)
     }
 
     // This is executed only once to create the server socket
-    struct Server server = server_constructor(0, "172.19.0.2", 10);
+    struct Server server = server_constructor(0, 10);
     server_socket = server.socket;
 
     int address_length = sizeof(server.address);
@@ -535,9 +527,14 @@ int main (int argc, char **argv)
             fprintf(stderr, "Failed to accept client...\n");
             break;
         }
+        printf("(Log) Client Socket: %d\n", client_socket);
 
         // Create multiple threads
-        reciveAndSendDataOnSeparateThread(client_socket, argv[1]);
+        if(reciveAndSendDataOnSeparateThread(client_socket, argv[1]) == -1) {
+            close(client_socket);
+            exit(-1);
+        }
+        close(client_socket);
     }
     exit(0);
 }
