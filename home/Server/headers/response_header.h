@@ -1,5 +1,5 @@
-#ifndef response_header
-#define response_header
+#ifndef response_header_h
+#define response_header_h
 
 #include "../headers/server_structures.h"
 

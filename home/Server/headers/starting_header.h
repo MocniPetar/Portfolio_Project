@@ -1,5 +1,5 @@
-#ifndef starting_header
-#define starting_header
+#ifndef starting_header_h
+#define starting_header_h
 
 #include "../headers/server_structures.h"
 
