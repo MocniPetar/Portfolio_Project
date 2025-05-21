@@ -1,20 +1,55 @@
 #include "../headers/server_structures.h"
 #include "../headers/starting_header.h"
+#include "../headers/important_header.h"
 
-pthread_mutex_t lock; 
+int parseRequest(struct Client*);
+int getReguestedRoute(char*, char*, char*);
+int writingResponse(char *, char *, char **, int);
+int sendingResponse(int, char*, int);
+void* constructResponse(void*);
 
 int parseRequest(struct Client* client) 
 {
-    ssize_t receivedBytes = recv(client->socket, client->requestBuffer, MAX_REQUEST_SIZE - 1, 0);
-    if (receivedBytes <= 0) {
-        fprintf(stderr, "(Log) Failed to read request_buffer to socket...\n");
-        dprintf(client->fd, "(Log) Failed to read request_buffer to socket...\n");
+    char temp_buffer[MAX_REQUEST_SIZE + 1];
+    ssize_t receivedBytes = 0;
+    size_t lastRecievedSize = 0;
+    
+    char* req_buffer = (char *)malloc((MAX_REQUEST_SIZE + 1) * sizeof(char));
+    if (req_buffer == NULL) {
+        dprintf(client->fd, "Failed to allocate memmory for req_buffer\n");
         return -1;
     }
-    client->requestBuffer[receivedBytes] = '\0';
 
-    dprintf(client->fd, "Request:\n%s\n", client->requestBuffer);
-    sscanf(client->requestBuffer, "%s %s", client->method, client->route);
+    memset(temp_buffer, 0, MAX_REQUEST_SIZE);
+    memset(req_buffer, 0, MAX_REQUEST_SIZE);
+
+    while ((receivedBytes = recv(client->socket, temp_buffer, MAX_REQUEST_SIZE - 1, 0)) > 0) 
+    {   
+        if (lastRecievedSize > strlen(req_buffer)) {
+            char *new_req_buffer = realloc(req_buffer, (lastRecievedSize + 1) * sizeof(char));
+            if (new_req_buffer == NULL) {
+                dprintf(client->fd, "Failed to allocate memmory for new_req_buffer\n");
+                free(req_buffer);
+                return -1;
+            }
+            strcat(new_req_buffer, temp_buffer);
+            req_buffer = new_req_buffer;
+        } else {
+            strcat(req_buffer, temp_buffer);
+        }
+
+        if (strstr(temp_buffer, "\r\n\r\n") != NULL) { break; }
+
+        lastRecievedSize += receivedBytes;
+        memset(temp_buffer, 0, MAX_REQUEST_SIZE);
+    }
+
+    dprintf(client->fd, "Request:\n%s\n", req_buffer);
+    sscanf(req_buffer, "%s %s", client->method, client->route);
+    free(req_buffer);
+
+    printf("(Log) Requested route: %s\n", client->route);
+
     client->method[strlen(client->method) + 1] = '\0';
     client->route[strlen(client->route) + 1] = '\0';
     
@@ -26,10 +61,11 @@ int parseRequest(struct Client* client)
         printf("(Log) Failed to allocate memory using malloc for temp_route...\n");
         return -1;
     }
-    strcpy(temp_route, client->dir);
+    memset(temp_route, 0, routeLength + dirLength + 1);
+
+    snprintf(temp_route, routeLength + dirLength, "%s", client->dir);
     strcat(temp_route, client->route);
-    temp_route[routeLength + dirLength] = '\0';
-    strcpy(client->route, temp_route);
+    snprintf(client->route, sizeof(client->route), "%s", temp_route);
 
     free(temp_route);
     return 0;
@@ -37,19 +73,23 @@ int parseRequest(struct Client* client)
 
 int getReguestedRoute(char *filePath, char *method, char *MIMEtype) 
 {
+    // This server only accepts GET requests
+
     if (strcmp(method, "GET") != 0)
     {
-        printf("(Log) %s is an unacceptable method...\n", method);
+        printf("(Log) %s is an unacceptable method\n", method);
         return -1;
     }
 
     ssize_t filePathLength = strlen(filePath);
+    // Skip the first two dots from ../WebSite/dist/browser/{filePath}
     for (int i = 2; i < (int)filePathLength; i++) {
         if (filePath[i] == '.') { 
             snprintf(MIMEtype, 16, "%s", &filePath[i]);
-            break;
         }
     }
+    
+    // If MIMEtype is less then one then the client requetsed a page
     if(strlen(MIMEtype) < 1)
     {
         if (filePath[filePathLength-1] == '/')
@@ -72,31 +112,26 @@ int getReguestedRoute(char *filePath, char *method, char *MIMEtype)
 
 int writingResponse(char *fullPath, char *MIMEtype, char **response_buffer, int fd) 
 {
-    // Check if backend end point exists from the fullPath (using if-else statements)
-    // Call backend function and process the data if exists
-    // Return backend response from here
-
-    // If not a backend call continue with sending site data
-
     FILE *file = fopen(fullPath, "r");
     char *file_buffer = NULL;
 
     if (file == NULL)
     {
-        size_t problem_response_size = strlen("HTTP/1.1 500 Problem\r\n\r\n");
-        *response_buffer = malloc(problem_response_size+1);
+        size_t problem_response_size = strlen("HTTP/1.1 500 Problem\r\n\r\n") + 1;
+        *response_buffer = (char *)malloc((problem_response_size)*sizeof(char));
         if (*response_buffer == NULL) {
             fprintf(stderr, "Failed to allocate memory...\n");
             dprintf(fd, "Failed to allocate memory...\n");
             return -1;
         }
-
-        strncpy(*response_buffer, "HTTP/1.1 500 Problem\r\n\r\n", problem_response_size);
-        (*response_buffer)[problem_response_size] = '\0';
+        memset(*response_buffer, 0, problem_response_size);
+        snprintf(*response_buffer, problem_response_size, "HTTP/1.1 500 Problem\r\n\r\n");
     }
     else 
     {
         char response_setup_string[256];
+        memset(response_setup_string, 0, 256);
+
         if (strcmp(MIMEtype, ".html") == 0) {
             snprintf(response_setup_string, sizeof(response_setup_string), "HTTP/1.1 200 OK\r\nContent-Type: text/html; charset=UTF-8\r\nConnection: keep-alive\r\n\r\n");
         }
@@ -109,9 +144,17 @@ int writingResponse(char *fullPath, char *MIMEtype, char **response_buffer, int 
         else if (strcmp(MIMEtype, ".svg") == 0) {
             snprintf(response_setup_string, sizeof(response_setup_string), "HTTP/1.1 200 OK\r\nContent-Type: image/svg+xml; charset=UTF-8\r\nConnection: keep-alive\r\n\r\n");
         }
+        else if (strcmp(MIMEtype, ".json") == 0) {
+            snprintf(response_setup_string, sizeof(response_setup_string), "HTTP/1.1 200 OK\r\nContent-Type: application/json; charset=UTF-8\r\nConnection: keep-alive\r\n\r\n");
+        }
+        else if (strcmp(MIMEtype, ".ico") == 0) {
+            snprintf(response_setup_string, sizeof(response_setup_string), "HTTP/1.1 200 OK\r\nContent-Type: image/x-icon; charset=UTF-8\r\nConnection: keep-alive\r\n\r\n");
+        }
+        else if (strcmp(MIMEtype, ".png") == 0) {
+            snprintf(response_setup_string, sizeof(response_setup_string), "HTTP/1.1 200 OK\r\nContent-Type: image/png; charset=UTF-8\r\nConnection: keep-alive\r\n\r\n");
+        }
 
         size_t response_setup_size = strlen(response_setup_string);
-        
         fseek(file, 0, SEEK_END);
         ssize_t file_size = ftell(file);
         fseek(file, 0, SEEK_SET);
@@ -124,6 +167,7 @@ int writingResponse(char *fullPath, char *MIMEtype, char **response_buffer, int 
             fclose(file);
             return -1;
         }
+        memset(file_buffer, 0, file_size + 1);
 
         if(fread(file_buffer, 1, file_size, file) <= 0) {
             fprintf(stderr, "(Log) Failed to read data from file...\n");
@@ -132,7 +176,6 @@ int writingResponse(char *fullPath, char *MIMEtype, char **response_buffer, int 
             fclose(file);
             return -1;
         }
-        file_buffer[file_size] = '\0';
 
         *response_buffer = (char *)malloc(response_setup_size + file_size + 1);
         if (*response_buffer == NULL) {
@@ -142,7 +185,9 @@ int writingResponse(char *fullPath, char *MIMEtype, char **response_buffer, int 
             free(file_buffer);
             return -1;
         }
-        strcpy(*response_buffer, response_setup_string);
+        memset(*response_buffer, 0, response_setup_size + file_size + 1);
+
+        strncpy(*response_buffer, response_setup_string, response_setup_size + file_size);
         strcat(*response_buffer, file_buffer);
 
         fclose(file);
@@ -156,8 +201,8 @@ int sendingResponse(int clientSocket, char* response_buffer, int fd)
 {
     if (send(clientSocket, response_buffer, strlen(response_buffer), 0) < 0)
     {
-        fprintf(stderr, "(Log) Failed to send response...\n");
-        dprintf(fd, "(Log) Failed to send response...\n");
+        fprintf(stderr, "(Log) Failed to send response\n");
+        dprintf(fd, "(Log) Failed to send response\n");
         return -1;
     }
 
@@ -166,97 +211,50 @@ int sendingResponse(int clientSocket, char* response_buffer, int fd)
 
 void* constructResponse(void* arg) 
 {
-    pthread_mutex_lock(&lock);
     struct Client client = *((struct Client*)arg);
     free(arg);
 
     // Take the request and process it
     if (parseRequest(&client) == -1) {
-        printf("(Log) Error occured while parsing the request...\n");
-        dprintf(client.fd, "(Log) Error occured while parsing the request...\n");
+        printf("(Log) Error occured while parsing the request. Check the log for more details\n");
         close(client.socket);
-        pthread_mutex_unlock(&lock); 
         return NULL;
     }
 
     char filePath[1024];
     char MIMEtype[16];
+    memset(filePath, 0, 1024);
+    memset(MIMEtype, 0, 16);
+
     snprintf(filePath, sizeof(filePath), "%s", client.route);
 
     // Get the requested route
     if (getReguestedRoute(filePath, client.method, MIMEtype) == -1) {
-        printf("(Log) Error occured while creating the route...\n");
-        dprintf(client.fd, "(Log) Error occured while creating the route...\n");
+        printf("(Log) Error occured while creating the route. Check the log for more details\n");
         close(client.socket);
-        pthread_mutex_unlock(&lock); 
         return NULL;
     }
 
-    // This is what I am testing at the moment
-    // printf("Socket: %d\nFd: %d\nMethod: %s\nRoute: %s\nDirectory: %s\nFile path: %s\n", 
-    //     client.socket, client.fd, client.method, client.route, client.dir, filePath);
-
+    // Create the response
     char* responseBuffer = NULL;
     if (writingResponse(filePath, MIMEtype, &responseBuffer, client.fd) == -1) {
         if (responseBuffer != NULL) { free(responseBuffer); }
         close(client.socket);
-        pthread_mutex_unlock(&lock); 
         return NULL;
     }
 
     if (responseBuffer == NULL) {
         printf("(Log) ERROR: Response buffer is NULL!\n");
         close(client.socket);
-        pthread_mutex_unlock(&lock); 
         return NULL;
     }
 
-    // Send a response to the client
+    // Send the response to the client
     if (sendingResponse(client.socket, responseBuffer, client.fd) == -1) {
-        printf("(Log) Error occured while sending the response...\n");
-        dprintf(client.fd, "(Log) Error occured while sending the response...\n");
+        printf("(Log) Error occured while sending the response. Check the log for more details\n");
     }
-
-    printf("(Log) Sent page data to client\n");
 
     close(client.socket);
     free(responseBuffer);
-    pthread_mutex_unlock(&lock); 
     return NULL;
-}
-
-// ----------------------------- //
-// ADD mutex locking for threads so buffer overflows are a thing of the past
-// ----------------------------- //
-
-int constructResponseOnASeparateThread(int clientSocket, char* dir, int fd) 
-{
-    struct Client* client = (struct Client*)malloc(sizeof(struct Client));
-    if (client == NULL) {
-        fprintf(stderr, "Memory allocation failed!\n");
-        return -1;
-    }
-    
-    client->socket = clientSocket;
-    client->fd = fd;
-    strcpy(client->dir, dir);
-
-    if (pthread_mutex_init(&lock, NULL) != 0) { 
-        printf("(Log) mutex init has failed\n"); 
-        return -1; 
-    }
-    
-    // Create a thread
-    pthread_t thread;
-    int result = pthread_create(&thread, NULL, &constructResponse, client);
-    if (result != 0) {
-        fprintf(stderr, "Failed to create thread. Error code: %ld\n", thread);
-        dprintf(fd, "Failed to create thread. Error code: %ld\n", thread);
-        pthread_mutex_destroy(&lock);
-        return -1;
-    }
-
-    pthread_join(thread, NULL);
-    pthread_mutex_destroy(&lock);
-    return 0;
 }

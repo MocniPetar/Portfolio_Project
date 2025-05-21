@@ -1,4 +1,4 @@
-FROM ubuntu:25.04
+FROM ubuntu:25.10
 
 ENV DEBIAN_FRONTEND=noninteractive
 
@@ -13,6 +13,6 @@ EXPOSE 8080
 
 COPY ./home /home/ubuntu
 
-WORKDIR /home/ubuntu/Server
+WORKDIR /home/ubuntu/server
 
 CMD ["make"]
