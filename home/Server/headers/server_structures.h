@@ -44,4 +44,11 @@ struct clientNode {
 };
 typedef struct clientNode node_t;
 
+struct pageNode {
+    char route[256];
+    int fd;
+    struct pageNode* next;
+};
+typedef struct pageNode node_p;
+
 #endif

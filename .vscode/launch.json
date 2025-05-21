@@ -1,0 +1,13 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "C/C++ Runner: Debug Session",
+      "type": "lldb",
+      "request": "launch",
+      "args": [],
+      "cwd": "/Users/pierstrbad/Desktop/CProjects/Portfolio_Project/home/Server/components",
+      "program": "/Users/pierstrbad/Desktop/CProjects/Portfolio_Project/home/Server/components/build/Debug/outDebug"
+    }
+  ]
+}
