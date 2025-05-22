@@ -40,12 +40,15 @@ int main(int argc, char** argv)
         printf("\n(Log) Successfully located the project build directory\n");
         printf("(Log) Reading the contents of this directory and storing page specific data in a list\n");
         check(readContentsOfDirectory(dir, argv[1]), "(Log) Problem occured in function createListOfPages\n", 0);
+        printList();
+        check(closeFdAndFreeList(), "(Log) Error occured while freeing memory for the page data list\n", 0);
+        // printList();
         closedir(dir);
     } else {
         printf("(Log) Failed to locate/open project build directory\n");
         exit(1);
     }
-    check((fd = open("./logs/output.txt", O_WRONLY | O_CREAT | O_TRUNC, 0644)), "(Log) Error occured while listening for requests", 0);
+    check((fd = open("./logs/output.txt", O_WRONLY | O_CREAT | O_TRUNC, 0644)), "(Log) Error occured while opening the fd for writing program messages\n", 0);
 
 
     // Create server

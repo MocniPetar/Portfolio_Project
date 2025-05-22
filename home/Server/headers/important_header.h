@@ -6,6 +6,8 @@
 void enqueue(struct Client*);
 struct Client* dequeue();
 int readContentsOfDirectory(DIR*, char*);
+void printList();
+int closeFdAndFreeList();
 void check(int, char*, int);
 
 #endif

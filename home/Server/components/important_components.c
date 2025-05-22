@@ -3,6 +3,12 @@
 node_t* head = NULL;
 node_t* tail = NULL;
 
+node_p* head_p = NULL;
+node_p* tail_p = NULL;
+
+void check(int, char* , int);
+int addPageDataToList(char *, int);
+
 void enqueue(struct Client* client) 
 {
     node_t *newnode = malloc(sizeof(node_t));
@@ -40,12 +46,26 @@ int readContentsOfDirectory(DIR* buildDir, char * dirPath)
     }
     else {
         struct dirent *dir;
+        int fd = 0;
         while ((dir = readdir(buildDir)) != NULL) {
             if (dir->d_type == DT_REG)
             {
                 printf("\tFile: %s\n", dir->d_name);
+                size_t filePathSize = strnlen(dirPath, 64) + strnlen(dir->d_name, 64);
+                char *filePath = (char *)malloc(sizeof(char) * (filePathSize + 2));
+                if (filePath == NULL) {
+                    printf("(Log) Failed to allocate memory for deeper reading of the directory\n");
+                    return -1;
+                }
+                memset(filePath, 0, filePathSize + 2);
+                strcpy(filePath, dirPath);
+                strcat(filePath, "/");
+                strcat(filePath, dir->d_name);
+                check((fd = open(filePath, O_RDONLY, 0644)), "(Log) Error occured while opening file\n" ,0);
+                free(filePath);
 
                 // Call addPageDataToList
+                check(addPageDataToList(dir->d_name, fd), "(Log) Error occured in function addPageDataToList\n",0);
             }
             else if (dir->d_type == DT_DIR)
             {
@@ -80,7 +100,65 @@ int readContentsOfDirectory(DIR* buildDir, char * dirPath)
     return 0;
 }
 
-int addPageDataToList() {
+// Only for testing purposes
+void printList() 
+{
+    if (head_p == NULL) {
+        printf("(Log) The list is empty\n");
+    } else {
+        node_p* start = head_p;
+        puts("\n");
+        while(head_p != NULL) {
+            printf("\tRoute: %s\n", head_p->route);
+            printf("\tfd: %d\n", head_p->fd);
+            head_p = head_p->next;
+        }
+        head_p = start;
+    }
+}
+
+int addPageDataToList(char * route, int fd) 
+{
+    node_p *newnode = malloc(sizeof(node_p));
+    if (newnode == NULL) {
+        printf("(Log) Failed to allocate memory for the list of pages\n");
+        return -1;
+    }
+
+    strcpy(newnode->route, route);
+    newnode->fd = fd;
+    newnode->next = NULL;
+
+    if (tail_p == NULL) {
+        head_p = newnode;
+    } else {
+        tail_p->next = newnode;
+    }
+    tail_p = newnode;
+    return 0;
+}
+
+int findPageDataInList() { return 0; }
+
+int closeFdAndFreeList() 
+{ 
+    if (head_p == NULL) {
+        printf("(Log) Error head should not be NULL when executing method closeFdAndFreeList\n");
+        return -1;
+    }
+
+    node_p* temp = NULL;
+    while(head_p != NULL) 
+    {
+        temp = head_p;
+        head_p = head_p->next;
+        
+        if (head_p == NULL) { tail_p = NULL; }
+        close(temp->fd);
+        free(temp);
+    }
+    printf("(Log) Successfully closed all file descriptors and freed the list\n");
+
     return 0;
 }
 
