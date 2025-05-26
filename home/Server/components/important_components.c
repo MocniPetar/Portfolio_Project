@@ -61,11 +61,11 @@ int readContentsOfDirectory(DIR* buildDir, char * dirPath)
                 strcpy(filePath, dirPath);
                 strcat(filePath, "/");
                 strcat(filePath, dir->d_name);
-                check((fd = open(filePath, O_RDONLY, 0644)), "(Log) Error occured while opening file\n" ,0);
-                free(filePath);
-
+                check((fd = open(filePath, O_RDONLY)), "(Log) Error occured while opening file\n" ,0);
+                
                 // Call addPageDataToList
-                check(addPageDataToList(dir->d_name, fd), "(Log) Error occured in function addPageDataToList\n",0);
+                check(addPageDataToList(filePath, fd), "(Log) Error occured i n function addPageDataToList\n",0);
+                free(filePath);
             }
             else if (dir->d_type == DT_DIR)
             {
@@ -87,8 +87,8 @@ int readContentsOfDirectory(DIR* buildDir, char * dirPath)
                     printf("\tDirectory path: %s\n", deeperDirPath);
                     printf("\tContents of %s:\n", dir->d_name);
 
-                    DIR *bDir = opendir(deeperDirPath);
                     // Run a recursive call to the function
+                    DIR *bDir = opendir(deeperDirPath);
                     readContentsOfDirectory(bDir, deeperDirPath);
                     closedir(bDir);
                     free(deeperDirPath);
@@ -96,7 +96,6 @@ int readContentsOfDirectory(DIR* buildDir, char * dirPath)
             }
         }
     }
-
     return 0;
 }
 
@@ -114,6 +113,7 @@ void printList()
             head_p = head_p->next;
         }
         head_p = start;
+        free(start);
     }
 }
 
@@ -138,7 +138,26 @@ int addPageDataToList(char * route, int fd)
     return 0;
 }
 
-int findPageDataInList() { return 0; }
+int findPageDataInList(char* path)
+{
+    if (head_p == NULL) {
+        printf("(Log) ERROR: The list is empty\n");
+        return -1;
+    }
+    node_p* start = head_p;
+    int fd = 0;
+    while(head_p != NULL) 
+    {
+        if (strcmp(path, head_p->route) == 0) 
+        {
+            fd = head_p->fd;
+            break;
+        }
+        head_p = head_p->next;
+    }
+    head_p = start;
+    return fd;
+}
 
 int closeFdAndFreeList() 
 { 

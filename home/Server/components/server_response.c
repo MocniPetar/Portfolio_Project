@@ -112,10 +112,13 @@ int getReguestedRoute(char *filePath, char *method, char *MIMEtype)
 
 int writingResponse(char *fullPath, char *MIMEtype, char **response_buffer, int fd) 
 {
-    FILE *file = fopen(fullPath, "r");
+
+    printf("(Log) Full path to file: %s\n", fullPath);
+    // Call findPageDataInList here
+    int page_fd = findPageDataInList(fullPath);
     char *file_buffer = NULL;
 
-    if (file == NULL)
+    if (fd == 0)
     {
         size_t problem_response_size = strlen("HTTP/1.1 500 Problem\r\n\r\n") + 1;
         *response_buffer = (char *)malloc((problem_response_size)*sizeof(char));
@@ -132,6 +135,7 @@ int writingResponse(char *fullPath, char *MIMEtype, char **response_buffer, int 
         char response_setup_string[256];
         memset(response_setup_string, 0, 256);
 
+        // Find a way to better write this part
         if (strcmp(MIMEtype, ".html") == 0) {
             snprintf(response_setup_string, sizeof(response_setup_string), "HTTP/1.1 200 OK\r\nContent-Type: text/html; charset=UTF-8\r\nConnection: keep-alive\r\n\r\n");
         }
@@ -155,25 +159,23 @@ int writingResponse(char *fullPath, char *MIMEtype, char **response_buffer, int 
         }
 
         size_t response_setup_size = strlen(response_setup_string);
-        fseek(file, 0, SEEK_END);
-        ssize_t file_size = ftell(file);
-        fseek(file, 0, SEEK_SET);
+        ssize_t file_size = 0;
+        check((file_size = lseek(page_fd, 0, SEEK_END)), "(Log) Failed to read the size of page_fd\n", 0);
+        check(lseek(page_fd, 0, SEEK_SET), "(Log) Failed to reset the page_fd\n", 0);
 
         file_buffer = (char *)malloc(file_size + 1);
         if (file_buffer == NULL)
         {
             fprintf(stderr, "(Log) Failed to allocate memory...\n");
             dprintf(fd, "(Log) Failed to allocate memory...\n");
-            fclose(file);
             return -1;
         }
         memset(file_buffer, 0, file_size + 1);
 
-        if(fread(file_buffer, 1, file_size, file) <= 0) {
+        if(read(page_fd, file_buffer, file_size) <= 0) {
             fprintf(stderr, "(Log) Failed to read data from file...\n");
             dprintf(fd, "(Log) Failed to read data from file...\n");
             free(file_buffer);
-            fclose(file);
             return -1;
         }
 
@@ -181,7 +183,6 @@ int writingResponse(char *fullPath, char *MIMEtype, char **response_buffer, int 
         if (*response_buffer == NULL) {
             fprintf(stderr, "Failed to allocate memory...\n");
             dprintf(fd, "Failed to allocate memory...\n");
-            fclose(file);
             free(file_buffer);
             return -1;
         }
@@ -190,10 +191,8 @@ int writingResponse(char *fullPath, char *MIMEtype, char **response_buffer, int 
         strncpy(*response_buffer, response_setup_string, response_setup_size + file_size);
         strcat(*response_buffer, file_buffer);
 
-        fclose(file);
         free(file_buffer);
     }
-
     return 0;
 }
 

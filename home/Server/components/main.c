@@ -14,9 +14,10 @@ void handle_sigint(int sig) {
 
 void cleanup() {
     dprintf(fd, "(Log) End of session\n");
+    check(closeFdAndFreeList(), "(Log) Error occured while freeing memory for the page data list\n", 0);
     close(fd);
     close(server_socket);
-    printf("(Log) Closing file descriptors and sockets\n");
+    printf("(Log) Closing file descriptors and sockets, and freeing memory\n");
 }
 
 int main(int argc, char** argv) 
@@ -40,9 +41,6 @@ int main(int argc, char** argv)
         printf("\n(Log) Successfully located the project build directory\n");
         printf("(Log) Reading the contents of this directory and storing page specific data in a list\n");
         check(readContentsOfDirectory(dir, argv[1]), "(Log) Problem occured in function createListOfPages\n", 0);
-        printList();
-        check(closeFdAndFreeList(), "(Log) Error occured while freeing memory for the page data list\n", 0);
-        // printList();
         closedir(dir);
     } else {
         printf("(Log) Failed to locate/open project build directory\n");
@@ -52,9 +50,9 @@ int main(int argc, char** argv)
 
 
     // Create server
-    // struct serverStructure server = createServer(0, 10);
-    // server_socket = server.socket;
+    struct serverStructure server = createServer(0, 10);
+    server_socket = server.socket;
 
-    // listeningForRequest(server, argv[1], fd);
+    listeningForRequest(server, argv[1], fd);
     exit(0);
 }
