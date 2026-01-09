@@ -1,4 +1,8 @@
+# Compiled objects and libraries
 *.[oa]
+
+# Editor backup files
 *~
 
-.vscode
+# OS file
+.DS_Store
