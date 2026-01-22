@@ -1,0 +1,10 @@
+
+<div class="navbar-layout">
+    <div class="link-container">
+        @for (menu of menus; track menu.page) {
+            <div class="navbar-nav-item" (click)="handleNavigation(menu)">
+                <p class="navbar-nav-item-label"> {{menu.page.label}} </p>
+            </div>
+        }
+    </div>
+</div>
