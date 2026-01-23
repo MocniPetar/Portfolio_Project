@@ -7,7 +7,7 @@ import { FooterComponent } from './components/footer/footer.component';
   selector: 'app-root',
   imports: [NavbarComponent, RouterOutlet, FooterComponent],
   templateUrl: './app.html',
-  styleUrl: './app.css'
+  styleUrl: './app.less'
 })
 export class App {
   constructor() {}

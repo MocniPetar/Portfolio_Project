@@ -5,7 +5,7 @@ import { Store } from '@ngrx/store';
   selector: 'footer-component',
   imports: [],
   templateUrl: './footer.component.html',
-  styleUrl: './footer.component.css',
+  styleUrl: './footer.component.less',
 })
 export class FooterComponent {
   constructor(private store: Store) {}

@@ -1,8 +1,12 @@
 
 <div class="navbar-layout">
+    <div class="name-occupation-container">
+        <p class="name-item">{{ nameLabel }}</p>
+        <p class="work-item">{{ occupationLabel }}</p>
+    </div>
     <div class="link-container">
-        @for (menu of menus; track menu.page) {
-            <div class="navbar-nav-item" (click)="handleNavigation(menu)">
+        @for (menu of menus; track menu) {
+            <div class="navbar-nav-item" (click)="handleNavigation(menu.page)">
                 <p class="navbar-nav-item-label"> {{menu.page.label}} </p>
             </div>
         }
