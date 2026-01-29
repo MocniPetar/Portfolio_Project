@@ -25,7 +25,8 @@ export const appConfig: ApplicationConfig = {
 
       return Promise.all([
         configService.loadLabels(),
-        configService.loadSettings()
+        configService.loadSettings(),
+        configService.loadIcons()
       ]);
     })
 ]

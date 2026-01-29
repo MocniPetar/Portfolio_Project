@@ -1,4 +1,4 @@
-import { Component, Input, OnInit } from '@angular/core';
+import { AfterViewInit, Component, ElementRef, Input, OnInit, ViewChild } from '@angular/core';
 import { Store } from '@ngrx/store';
 import { firstValueFrom } from 'rxjs';
 import { selectLabels } from '../../states/labels/labels.selectors';
@@ -7,14 +7,15 @@ import { config } from 'process';
 import { error } from 'console';
 import { Pages, Page } from '../../models/menu';
 import { Router } from '@angular/router';
+import { MatIconModule } from "@angular/material/icon";
 
 @Component({
   selector: 'navbar',
-  imports: [],
+  imports: [MatIconModule],
   templateUrl: './navbar.component.html',
   styleUrl: './navbar.component.less',
 })
-export class NavbarComponent implements OnInit{
+export class NavbarComponent implements OnInit, AfterViewInit{
   @Input() menus: Pages[] = [];
 
   nameLabel: string = "";
@@ -41,6 +42,31 @@ export class NavbarComponent implements OnInit{
       .catch(error => {
         throw error;
       });
+  }
+
+  ngAfterViewInit(): void {
+  }
+
+  navLinkItemAnimation(event: any) {
+    if (event.srcElement.classList.contains('animate')) {
+      event.srcElement.classList.remove('animate');
+      void event.srcElement.offsetWidth;
+    }
+    event.srcElement.classList.add('animate');
+  }
+
+  listener(event: any) {
+    switch (event.type) {
+      case "animationstart":
+        console.log(`Started: elapsed time is ${event.elapsedTime}`);
+        break;
+      case "animationend":
+        console.log(`Started: elapsed time is ${event.elapsedTime}`)
+        break;
+      case "animationiteration":
+        console.log(`Started: elapsed time is ${event.elapsedTime}`)
+        break;
+    }
   }
 
   handleNavigation(page: Page) {

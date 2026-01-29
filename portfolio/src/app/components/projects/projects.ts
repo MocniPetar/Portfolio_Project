@@ -4,8 +4,10 @@ import { Component } from '@angular/core';
   selector: 'app-projects',
   imports: [],
   templateUrl: './projects.html',
-  styleUrl: './projects.css',
+  styleUrl: './projects.less',
 })
 export class Projects {
-
+  placeholderCards: any[] = [1, 2, 3, 4, 5];
+  
+  constructor() {}
 }

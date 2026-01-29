@@ -5,10 +5,20 @@
         <p class="work-item">{{ occupationLabel }}</p>
     </div>
     <div class="link-container">
-        @for (menu of menus; track menu) {
-            <div class="navbar-nav-item" (click)="handleNavigation(menu.page)">
-                <p class="navbar-nav-item-label"> {{menu.page.label}} </p>
-            </div>
-        }
+        <div class="normal-menu">
+            @for (menu of menus; track menu) {
+                <div class="navbar-nav-item" (click)="handleNavigation(menu.page)">
+                    <p class="navbar-nav-item-label"><span #link class="animated-nav-item-bg" (mouseover)="navLinkItemAnimation($event)"> {{menu.page.label}} </span></p>
+                </div>
+            }
+        </div>
+        <div class="hamburger-menu">
+            <mat-icon svgIcon="hamburger" aria-hidden="false"></mat-icon>
+            <!-- @for (menu of menus; track menu) {
+                <div class="navbar-nav-item" (click)="handleNavigation(menu.page)">
+                    <p class="navbar-nav-item-label"> {{menu.page.label}} </p>
+                </div>
+            } -->
+        </div>
     </div>
 </div>

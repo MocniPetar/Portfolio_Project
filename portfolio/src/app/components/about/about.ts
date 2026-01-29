@@ -7,5 +7,7 @@ import { Component } from '@angular/core';
   styleUrl: './about.less',
 })
 export class About {
-
+  placeholderCards: any[] = [1, 2, 3, 4, 5];
+  
+  constructor() {}
 }
