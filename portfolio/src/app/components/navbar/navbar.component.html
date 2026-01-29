@@ -6,9 +6,9 @@
     </div>
     <div class="link-container">
         <div class="normal-menu">
-            @for (menu of menus; track menu) {
+            @for (menu of menus; track menu; let idx = $index) {
                 <div class="navbar-nav-item" (click)="handleNavigation(menu.page)">
-                    <p class="navbar-nav-item-label"><span #link class="animated-nav-item-bg" (mouseover)="navLinkItemAnimation($event)"> {{menu.page.label}} </span></p>
+                    <p class="navbar-nav-item-label"><span #link [id]=idx class="animated-nav-item-bg" (mouseover)="navLinkItemAnimation($event)"> {{menu.page.label}} </span></p>
                 </div>
             }
         </div>

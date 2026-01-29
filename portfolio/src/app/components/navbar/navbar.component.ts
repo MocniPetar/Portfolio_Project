@@ -1,13 +1,12 @@
-import { AfterViewInit, Component, ElementRef, Input, OnInit, ViewChild } from '@angular/core';
+import { AfterViewInit, Component, ElementRef, Input, OnInit, QueryList, ViewChildren } from '@angular/core';
 import { Store } from '@ngrx/store';
 import { firstValueFrom } from 'rxjs';
 import { selectLabels } from '../../states/labels/labels.selectors';
 import { selectSettings } from '../../states/appsettings/settings.selectors';
-import { config } from 'process';
-import { error } from 'console';
-import { Pages, Page } from '../../models/menu';
+import { Pages, Page, linkManager } from '../../models/menu';
 import { Router } from '@angular/router';
 import { MatIconModule } from "@angular/material/icon";
+import { link } from 'fs';
 
 @Component({
   selector: 'navbar',
@@ -15,13 +14,25 @@ import { MatIconModule } from "@angular/material/icon";
   templateUrl: './navbar.component.html',
   styleUrl: './navbar.component.less',
 })
-export class NavbarComponent implements OnInit, AfterViewInit{
+
+export class NavbarComponent implements OnInit, AfterViewInit
+{
+  @ViewChildren('link', {read: ElementRef}) links!: QueryList<ElementRef<HTMLElement>>;
   @Input() menus: Pages[] = [];
 
   nameLabel: string = "";
   occupationLabel: string = "";
+
+  private linkAnimationManager: linkManager[] = [];
   
-  constructor(private store: Store, private router: Router) {}
+  constructor(private store: Store, private router: Router) {
+    this.linkAnimationManager = [
+      {id: 0, isAnimated: false},
+      {id: 1, isAnimated: false},
+      {id: 2, isAnimated: false},
+      {id: 3, isAnimated: false}
+    ];
+  }
 
   ngOnInit(): void {
     firstValueFrom<any>(this.store.select(selectLabels))
@@ -37,7 +48,7 @@ export class NavbarComponent implements OnInit, AfterViewInit{
     firstValueFrom<any>(this.store.select(selectSettings))
       .then(settings => {
         const { pages } = settings;
-        this.menus = pages;        
+        this.menus = pages; 
       })
       .catch(error => {
         throw error;
@@ -45,28 +56,47 @@ export class NavbarComponent implements OnInit, AfterViewInit{
   }
 
   ngAfterViewInit(): void {
+    this.checkLinks();
+
+    this.links.changes.subscribe(() => {
+      this.checkLinks();
+    });
+  }
+
+  private checkLinks() {
+    if (this.links.length > 0) {
+      this.links.forEach(link => {
+        link.nativeElement.addEventListener("animationstart", (event: AnimationEvent) =>  {
+          let idx = Number(link.nativeElement.id);
+          this.linkAnimationManager[idx].isAnimated = this.listener(event);
+        });
+        link.nativeElement.addEventListener("animationend", (event: AnimationEvent) => {
+          let idx = Number(link.nativeElement.id);
+          this.linkAnimationManager[idx].isAnimated = this.listener(event);
+        });
+      });
+    } 
   }
 
   navLinkItemAnimation(event: any) {
-    if (event.srcElement.classList.contains('animate')) {
-      event.srcElement.classList.remove('animate');
-      void event.srcElement.offsetWidth;
+    if (!this.linkAnimationManager[event.srcElement.id as number].isAnimated) {
+      if (event.srcElement.classList.contains('animate')) {
+        event.srcElement.classList.remove('animate');
+        void event.srcElement.offsetWidth;
+      }
+      event.srcElement.classList.add('animate');
     }
-    event.srcElement.classList.add('animate');
   }
 
   listener(event: any) {
     switch (event.type) {
       case "animationstart":
-        console.log(`Started: elapsed time is ${event.elapsedTime}`);
-        break;
+        return true;
       case "animationend":
-        console.log(`Started: elapsed time is ${event.elapsedTime}`)
-        break;
-      case "animationiteration":
-        console.log(`Started: elapsed time is ${event.elapsedTime}`)
-        break;
+        return false;
     }
+
+    return false;
   }
 
   handleNavigation(page: Page) {

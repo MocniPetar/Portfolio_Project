@@ -7,3 +7,8 @@ export interface Page {
     path: string;
     modal: boolean;
 }
+
+export interface linkManager {
+  id: number,
+  isAnimated: boolean
+}
