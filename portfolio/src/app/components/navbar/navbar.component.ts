@@ -1,4 +1,4 @@
-import { AfterViewInit, Component, ElementRef, Input, OnInit, QueryList, ViewChildren } from '@angular/core';
+import { AfterViewInit, Component, ElementRef, Input, OnInit, QueryList, ViewChild, ViewChildren } from '@angular/core';
 import { Store } from '@ngrx/store';
 import { firstValueFrom } from 'rxjs';
 import { selectLabels } from '../../states/labels/labels.selectors';
@@ -6,7 +6,6 @@ import { selectSettings } from '../../states/appsettings/settings.selectors';
 import { Pages, Page, linkManager } from '../../models/menu';
 import { Router } from '@angular/router';
 import { MatIconModule } from "@angular/material/icon";
-import { link } from 'fs';
 
 @Component({
   selector: 'navbar',
@@ -18,6 +17,7 @@ import { link } from 'fs';
 export class NavbarComponent implements OnInit, AfterViewInit
 {
   @ViewChildren('link', {read: ElementRef}) links!: QueryList<ElementRef<HTMLElement>>;
+  @ViewChild('bottomScroll', { static: true }) bottomScroll!: ElementRef<HTMLDivElement>;
   @Input() menus: Pages[] = [];
 
   nameLabel: string = "";
@@ -25,16 +25,17 @@ export class NavbarComponent implements OnInit, AfterViewInit
 
   private linkAnimationManager: linkManager[] = [];
   
-  constructor(private store: Store, private router: Router) {
+  constructor(private store: Store, private router: Router) {}
+
+  ngOnInit(): void {
+
     this.linkAnimationManager = [
       {id: 0, isAnimated: false},
       {id: 1, isAnimated: false},
       {id: 2, isAnimated: false},
       {id: 3, isAnimated: false}
     ];
-  }
 
-  ngOnInit(): void {
     firstValueFrom<any>(this.store.select(selectLabels))
       .then(labels => {
         const { header } = labels;
@@ -61,6 +62,8 @@ export class NavbarComponent implements OnInit, AfterViewInit
     this.links.changes.subscribe(() => {
       this.checkLinks();
     });
+
+    this.setupScrollEffect();
   }
 
   private checkLinks() {
@@ -76,6 +79,10 @@ export class NavbarComponent implements OnInit, AfterViewInit
         });
       });
     } 
+  }
+
+  private setupScrollEffect() {
+    
   }
 
   navLinkItemAnimation(event: any) {
