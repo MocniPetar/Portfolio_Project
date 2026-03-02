@@ -1,3 +1,6 @@
 {
-    "hamburger": "assets/hamburger-svgrepo-com.svg"
+    "sidebar-hide": "assets/sidebar-hide-svgrepo-com.svg",
+    "sidebar-show": "assets/sidebar-show-svgrepo-com.svg",
+    "sidebar": "assets/sidebar-svgrepo-com.svg",
+    "refresh-viewport": "assets/refresh-solid-svgrepo-com.svg"
 }

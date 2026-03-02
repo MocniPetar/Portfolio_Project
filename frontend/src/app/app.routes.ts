@@ -1,24 +1,16 @@
 import { Routes } from '@angular/router';
+import { Intro } from './components/intro/intro';
 import { Home } from './components/home/home';
-import { About } from './components/about/about';
-import { Projects } from './components/projects/projects';
-import { Goals } from './components/goals/goals';
+import { DummyRefresh } from './components/dummyRefresh/dummy-refresh/dummy-refresh';
 
 export const routes: Routes = [
     {
         path: '',
+        component: Intro
+    },
+    {
+        path: 'home',
         component: Home
     },
-    {
-        path: 'about',
-        component: About
-    },
-    {
-        path: 'projects',
-        component: Projects
-    },
-    {
-        path: 'goals',
-        component: Goals
-    }
+    {path: '**', component: DummyRefresh},
 ];

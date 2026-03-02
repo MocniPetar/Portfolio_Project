@@ -1,12 +1,20 @@
-<!-- Introduction to the create of the page -->
-<div class="intro-layout">
-    <intro />
-</div>
+<!-- Page layout -->
+<div class="page-layout">
+    <!-- Toolbar -->
+    <toolbar class="toolbar-layout" [class.slide-transition]="isClosed" />
 
+    <!-- Toolbar open/close button -->
+    <div #sideBtn class="side-close-btn" (click)="sideBtnAction()">
+        <mat-icon *ngIf="isClosed" svgIcon="sidebar-show" aria-hidden="false" style="z-index: 5;"></mat-icon>
+        <mat-icon *ngIf="!isClosed" svgIcon="sidebar-hide" aria-hidden="false" style="z-index: 5;"></mat-icon>
+        <div class="hover-effect-div"></div>
+    </div>
 
-<!-- Main page layout -->
-<div class="layout">
-    <navbar />
-    <router-outlet />
-    <footer-component />
+    <!-- View window -->
+    <div class="view-layout">
+        <div class="viewport-refresh-button" (click)="refreshViewport()">
+            <mat-icon svgIcon="refresh-viewport" aria-hidden="false"> </mat-icon>
+        </div>
+        <router-outlet />
+    </div>
 </div>

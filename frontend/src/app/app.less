@@ -1,31 +1,61 @@
-.intro-layout {
-    width: 100%;
-    height: 90vh;
-    margin: 0;
-    overflow: hidden;
-
-    -webkit-user-select: none;
-    -ms-user-select: none;
-    user-select: none;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-}
-
-.layout {
+// Page layout class
+.page-layout {
     width: 100%;
     height: 100%;
-
-    visibility: hidden;
-    display: grid;
-    grid-auto-rows: auto;
-    grid-template-columns: 1fr;
-    background: whitesmoke;
+    display: inline-flex;
 }
 
-navbar {
-    position: -webkit-sticky;
-    position: sticky;
-    top: 0px;
+// Toolbar layout class
+.toolbar-layout {
+    width: 30%;
+    height: 100%;
+    background: #b8c0ff;
+    box-sizing: border-box;
+    display: flex;
+    transition: width .2s ease;
+}
+
+.slide-transition {
+    width: 0%;
+}
+
+// Side button class
+.side-close-btn {
+    width: 1.1em;
+    height: 100%;
+    background: #e9e9e9;
+    position: relative;
+
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 10;
+    padding: .1rem;
+}
+
+.side-close-btn:hover {
+    background: #e2eafc;
+    box-shadow: rgba(6, 24, 44, 0.4) 0px 0px 0px 2px, rgba(6, 24, 44, 0.65) 0px 4px 6px -1px, rgba(255, 255, 255, 0.08) 0px 1px 0px inset;
+}
+
+// View layout class
+.viewport-refresh-button {
+    position: absolute;
+    top: 2.5%;
+    right: 2.5%;
+    background: transparent;
+}
+
+.viewport-refresh-button:hover {
+    transform: scale(1.25);
+    cursor: pointer;
+}
+
+.view-layout {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    background: #bbd0ff;
+    padding: 1.2rem;
+    box-sizing: border-box;
 }

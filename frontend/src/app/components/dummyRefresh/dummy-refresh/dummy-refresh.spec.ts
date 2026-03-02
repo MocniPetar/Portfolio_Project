@@ -1,18 +1,18 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 
-import { FooterComponent } from './footer.component';
+import { DummyRefresh } from './dummy-refresh';
 
-describe('FooterComponent', () => {
-  let component: FooterComponent;
-  let fixture: ComponentFixture<FooterComponent>;
+describe('DummyRefresh', () => {
+  let component: DummyRefresh;
+  let fixture: ComponentFixture<DummyRefresh>;
 
   beforeEach(async () => {
     await TestBed.configureTestingModule({
-      imports: [FooterComponent]
+      imports: [DummyRefresh]
     })
     .compileComponents();
 
-    fixture = TestBed.createComponent(FooterComponent);
+    fixture = TestBed.createComponent(DummyRefresh);
     component = fixture.componentInstance;
     fixture.detectChanges();
   });
