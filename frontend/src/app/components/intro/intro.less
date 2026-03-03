@@ -3,6 +3,9 @@
     height: 100%;
     display: grid;
     grid-template-rows: 1fr 1fr;
+    position: relative;
+    overflow: hidden;
+    isolation: isolate;
 }
 
 .letter-grid, .initial-value {
@@ -17,49 +20,28 @@
 }
 
 /* Default options for the letters */
-.letter-left {
-    position: relative;
-    left: -60vw;
-    transition: left 1.5s;
-    transition-delay: 1s;
-}
-.letter-down {
-    position: relative;
-    bottom: -60vh;
-    transition: bottom 1.5s;
-    transition-delay: 2s;
-}
-.letter-up {
-    position: relative;
-    top: -60vh;
-    transition: top 1.5s;
-    transition-delay: 3s;
-}
-.letter-right {
-    position: relative;
-    right: -60vw;
-    transition: right 1.5s;
-    transition-delay: 4s;
-}
+.letter { position: relative; }
 
 /* Transitions for the letters */
-.left-transition { left: 0; }
-.down-transition { bottom: 0; }
-.up-transition { top: 0; }
-.right-transition { right: 0; }
+.left-transition { left: 0 !important; }
+.bottom-transition { bottom: 0 !important; }
+.top-transition { top: 0 !important; }
+.right-transition { right: 0 !important; }
 
 .continue-text { align-self: self-start; justify-self: center; font-size: 1rem !important; }
 .continue-text-with-animation {
     opacity: 0;
-    align-self: self-start; justify-self: center;
+    align-self: self-start; 
+    justify-self: center;
+    font-size: 1rem !important;
     
     -webkit-animation: Animation 1s ease forwards;
     -moz-animation: Animation 1s ease forwards;
     animation: Animation 1s ease forwards;
 
-    -webkit-animation-delay: 5s;
-    -moz-animation-delay: 5s;
-    animation-delay: 5s;
+    // -webkit-animation-delay: 5s;
+    // -moz-animation-delay: 5s;
+    // animation-delay: 5s;
 }
 
 @-webkit-keyframes Animation {

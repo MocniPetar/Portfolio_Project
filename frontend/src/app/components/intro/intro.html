@@ -1,22 +1,19 @@
 <div class="viewport">
-    <div *ngIf="animationTextArray.length > 0" class="letter-grid">
-        <div *ngFor="let animationLetter of animationTextArray; index as i; first as isFirst; last as isLast">
-            <div *ngIf="isFirst" class="letter-left" [class.left-transition]="firstLoad">
-                <p>{{animationLetter}}</p>
-            </div>
-            <div *ngIf="!isFirst && !isLast && i % 2 == 0" class="letter-down" [class.down-transition]="firstLoad">
-                <p>{{animationLetter}}</p>
-            </div>
-            <div *ngIf="!isFirst && !isLast && i % 2 != 0" class="letter-up" [class.up-transition]="firstLoad">
-                <p>{{animationLetter}}</p>
-            </div>
-            <div *ngIf="isLast" class="letter-right" [class.right-transition]="firstLoad">
-                <p>{{animationLetter}}</p>
+    <div *ngIf="animationTextList.length > 0" class="letter-grid">
+        <div *ngFor="let animationLetter of animationTextList;">
+            <div class="letter" 
+                [ngStyle]="letterStyles(animationLetter)"
+                [ngClass]="getTransition(animationLetter.transitioningFrom)"
+                >
+                <p>{{animationLetter.letter}}</p>
             </div>
         </div>
     </div>
-    <div *ngIf="animationTextArray.length == 0" class="initial-value"> <p> 'Animatino text goes here' </p> </div>
-    <div class="continue-text-with-animation" (animationend)="onAnimationEnd()">
-        Click anywhere or press any key to start
+    <div *ngIf="animationTextList.length == 0" class="initial-value"> <p> 'Animatino text goes here' </p> </div>
+    <div *ngIf="continueText.length > 0" class="continue-text-with-animation" [ngStyle]="continuteTextStyle()" (animationend)="onAnimationEnd()">
+        {{continueText}}
+    </div>
+    <div *ngIf="continueText.length == 0" class="continue-text">
+        'Placeholder text'
     </div>
 </div>

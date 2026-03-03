@@ -1,9 +1,10 @@
 import { AfterViewInit, Component, Output, EventEmitter, HostListener, OnInit, Input, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { AnimationDataEmitter } from '../../services/animation-data-emitter';
-import { Subscription } from 'rxjs';
+import { from, Subscription } from 'rxjs';
 import { Router } from '@angular/router';
 import { ComponentServ } from '../../services/component';
+import { animatedLetter, animationData, continuteTextOptions } from '../../models/animation';
 
 @Component({
   selector: 'intro',
@@ -21,8 +22,10 @@ export class Intro implements OnInit, AfterViewInit, OnDestroy {
 
   firstLoad = false;
   animationEnd = false;
-  animationTextArray: string[] = [];
-  recievedData: any;
+  animationTextList: animatedLetter[] = [];
+  recievedData: animationData = { mainText: "", continuteText: "", animationDuration: 0, animationDelay: 0 };
+  continueText: string = "";
+  continuteTextAnimationDelay: number = 0;
 
   constructor(
     private dataService: AnimationDataEmitter,
@@ -42,14 +45,14 @@ export class Intro implements OnInit, AfterViewInit, OnDestroy {
     });
 
     this.toolbarSubscription = this.dataService.triggerAction$.subscribe(data => {
-      this.changeAnimationText();
+      this.updateAnimation();
     });
 
     this.refreshFuncSubscription = this.componentService.triggerRefresh$.subscribe(() => {
       this.refreshViewport();
     });
 
-    if (this.recievedData) { this.animationTextArray = this.recievedData.split(''); }
+    if (this.recievedData) { this.updateAnimation(); }
   }
 
   ngAfterViewInit(): void {
@@ -58,10 +61,61 @@ export class Intro implements OnInit, AfterViewInit, OnDestroy {
     });
   }
 
-  changeAnimationText() {
-    if (typeof this.recievedData === 'string') {
-      this.animationTextArray = this.recievedData.split('');
+  updateAnimation() {
+    let _transitionDelay = 1;
+    let _transitioning = "";
+    let _fromAmount = "";
+    let _transitionDuration = 1.5;
+    this.animationTextList = [];
+    
+    if (this.recievedData.animationDuration != 0) {
+      _transitionDuration = this.recievedData.animationDuration;
     }
+
+    if (this.recievedData.animationDelay != 0) {
+      _transitionDelay = this.recievedData.animationDelay;
+    }
+
+    if (this.recievedData.mainText != "") {
+      const letterArray = this.recievedData.mainText.split('');
+      letterArray.forEach((_letter, index) => {
+        
+        if (index == 0) { _transitioning = "left"; _fromAmount = "-60vw"; }
+        else if (index == letterArray.length - 1) { _transitioning = "right"; _fromAmount = "-60vw"; }
+        else if (index % 2 == 0) { _transitioning = "top"; _fromAmount = "-60vh"; }
+        else if (index % 2 != 0) { _transitioning = "bottom"; _fromAmount = "-60vh"; }
+
+        this.animationTextList.push({letter: _letter, transitioningFrom: _transitioning, amountToFrom: _fromAmount, transitionTiming: `${_transitionDuration}s`, transitionDelay: `${_transitionDelay++}s`})
+      });
+    }
+
+    if (this.recievedData.continuteText != "") {
+      this.continueText = this.recievedData.continuteText;
+    }
+
+    this.continuteTextAnimationDelay = _transitionDelay;
+  }
+
+  letterStyles(animationLetter: any) {
+    return {
+      [animationLetter.transitioningFrom]: animationLetter.amountToFrom,
+      transition: `${animationLetter.transitioningFrom} ${animationLetter.transitionTiming}`,
+      'transition-delay': animationLetter.transitionDelay
+    };
+  }
+
+  getTransition(transitioningFrom: string) {
+    return {
+      [`${transitioningFrom}-transition`]: this.firstLoad
+    };
+  }
+
+  continuteTextStyle() {
+    return {
+      '-webkit-animation-delay': this.continuteTextAnimationDelay + 's',
+      '-moz-animation-delay': this.continuteTextAnimationDelay + 's',
+      'animation-delay': this.continuteTextAnimationDelay + 's',
+    };
   }
 
   onAnimationEnd() {

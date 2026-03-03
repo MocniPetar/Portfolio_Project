@@ -10,6 +10,7 @@ import { ReactiveFormsModule, FormBuilder, Validators, FormGroup } from '@angula
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import { AnimationDataEmitter } from '../../services/animation-data-emitter';
+import { animationData } from '../../models/animation';
 
 @Component({
   selector: 'toolbar',
@@ -51,15 +52,22 @@ export class ToolbarComponent implements OnInit
       });
 
       this.animationConfigForm = this.fb.group({
-        animationText: ['', [Validators.required, Validators.minLength(1)]]
+        animationText: [''],
+        animationDuration: [''],
+        animationDelay: [''],
+        continueText: ['']
       });
   }
 
   submitNewConfig() {
-    if (this.animationConfigForm.valid) {
-      this.dataService.changeAnimationData(this.animationConfigForm.get('animationText')?.value);
-      this.dataService.callIntroAnimationFunction();
-    }
+    let data: animationData = {
+      mainText: this.animationConfigForm.get('animationText')?.value,
+      continuteText: this.animationConfigForm.get('continueText')?.value,
+      animationDuration: Number(this.animationConfigForm.get('animationDuration')?.value),
+      animationDelay: Number(this.animationConfigForm.get('animationDelay')?.value),
+    };
+    this.dataService.changeAnimationData(data);
+    this.dataService.callIntroAnimationFunction();
   }
 
   emitAction(value: string) { this.dataEmitter.emit(value); }

@@ -3,8 +3,20 @@
         <mat-label> Animation text </mat-label>
         <input matInput formControlName="animationText" />
     </mat-form-field>
+    <mat-form-field appearance="outline">
+        <mat-label> Animation duration </mat-label>
+        <input matInput formControlName="animationDuration" />
+    </mat-form-field>
+    <mat-form-field appearance="outline">
+        <mat-label> Animation delay </mat-label>
+        <input matInput formControlName="animationDelay" />
+    </mat-form-field>
+    <mat-form-field appearance="outline">
+        <mat-label> Continue text </mat-label>
+        <input matInput formControlName="continueText" />
+    </mat-form-field>
 
     <button mat-raised-button color="primary" type="submit">
-        Submit
+        Update animation
     </button>
 </form>
